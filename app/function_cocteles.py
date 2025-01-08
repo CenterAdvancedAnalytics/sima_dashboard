@@ -33,6 +33,18 @@ def coctel_dashboard():
     temp_coctel_fuente_actores['coctel']=temp_coctel_fuente_actores['coctel'].fillna(0.0)
     temp_coctel_temas['coctel']=temp_coctel_temas['coctel'].fillna(0.0)
 
+    temp_coctel_fuente['coctel']=temp_coctel_fuente['coctel'].apply(lambda x: 1 if x != 0 else 0)
+    temp_coctel_fuente_programas['coctel']=temp_coctel_fuente_programas['coctel'].apply(lambda x: 1 if x != 0 else 0)
+    temp_coctel_fuente_fb['coctel']=temp_coctel_fuente_fb['coctel'].apply(lambda x: 1 if x != 0 else 0)
+    temp_coctel_fuente_actores['coctel']=temp_coctel_fuente_actores['coctel'].apply(lambda x: 1 if x != 0 else 0)
+    temp_coctel_temas['coctel']=temp_coctel_temas['coctel'].apply(lambda x: 1 if x != 0 else 0)
+
+    temp_coctel_fuente['id_fuente']=temp_coctel_fuente['id_fuente'].fillna(3)
+    temp_coctel_fuente_programas['id_fuente']=temp_coctel_fuente_programas['id_fuente'].fillna(3)
+    temp_coctel_fuente_fb['id_fuente']=temp_coctel_fuente_fb['id_fuente'].fillna(3)
+    temp_coctel_fuente_actores['id_fuente']=temp_coctel_fuente_actores['id_fuente'].fillna(3)
+    temp_coctel_temas['id_fuente']=temp_coctel_temas['id_fuente'].fillna(3)
+
     temp_coctel_fuente_programas['nombre_canal'] = temp_coctel_fuente_programas['canal_nombre'] 
     temp_coctel_fuente_fb['nombre_canal'] = temp_coctel_fuente_fb['canal_nombre'] 
 
