@@ -57,7 +57,7 @@ queries = {
         LEFT JOIN
             mensaje_fuerza mf ON n.id = mf.id
         WHERE
-            a.fecha_registro >= NOW() - INTERVAL '2 years';
+            a.fecha_registro >= NOW() - INTERVAL '1 year';
         """)
     },
     "ultima_fecha": {
