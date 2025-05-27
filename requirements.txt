@@ -5,9 +5,9 @@ pyarrow
 sqlalchemy
 psycopg2-binary
 python-dotenv
-pytz
-requests
 
+# pytz
+# requests
 # seaborn
 # matplotlib
 # fastapi[standard]

@@ -59,5 +59,15 @@ queries = {
         WHERE
             a.fecha_registro >= NOW() - INTERVAL '2 years';
         """)
+    },
+    "ultima_fecha": {
+        "read": text("""
+            SELECT
+                MAX(a.fecha_registro) AS ultima_fecha
+            FROM
+                acontecimientos a
+            WHERE
+                a.fecha_registro >= NOW() - INTERVAL '2 years';
+        """)
     }
 }
