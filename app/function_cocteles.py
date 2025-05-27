@@ -15,7 +15,7 @@ def cargar_coctel_completo():
     t0 = time.time()
     # temp_coctel_completo = pd.read_parquet('app/tables/temp_coctel_completo.parquet')
     temp_coctel_completo = get_query("cocteles","coctel_completo")
-    temp_coctel_completo['fecha_registro'] = pd.to_datetime(temp_coctel_completo['fecha_registro'])
+    temp_coctel_completo['fecha_registro'] = pd.to_datetime(temp_coctel_completo['fecha_registro']).dt.normalize()
     temp_coctel_completo['coctel'] = pd.to_numeric(temp_coctel_completo['coctel'], errors='coerce').fillna(0.0)
     temp_coctel_completo['coctel'] = (temp_coctel_completo['coctel'] != 0).astype(float)
     temp_coctel_completo = temp_coctel_completo[temp_coctel_completo["acontecimiento"] != "pRUEBA"]
