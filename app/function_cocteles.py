@@ -17,7 +17,7 @@ def cargar_coctel_completo():
     temp_coctel_completo = get_query("cocteles","coctel_completo")
     temp_coctel_completo['fecha_registro'] = pd.to_datetime(temp_coctel_completo['fecha_registro'])
     temp_coctel_completo['coctel'] = pd.to_numeric(temp_coctel_completo['coctel'], errors='coerce').fillna(0.0)
-    temp_coctel_completo = temp_coctel_completo[~temp_coctel_completo["coctel"].isin([5.0, 15.0])]
+    temp_coctel_completo['coctel'] = (temp_coctel_completo['coctel'] != 0).astype(float)
     temp_coctel_completo = temp_coctel_completo[temp_coctel_completo["acontecimiento"] != "pRUEBA"]
     temp_coctel_completo['id_fuente'] = temp_coctel_completo['id_fuente'].fillna(3)
     temp_coctel_fuente = temp_coctel_completo[['id', 'fecha_registro', 'acontecimiento', 'coctel', 'id_posicion',
@@ -236,6 +236,7 @@ def coctel_dashboard():
         temp_t2 = temp_t2.rename(columns={'id_fuente':'Medio','color':'Color','id':'Cantidad'})
         temp_t2['Medio'] = temp_t2['Medio'].replace({1:'RADIO',2:'TV',3:'REDES'})
         temp_t2['Porcentaje'] = temp_t2['Cantidad'] / temp_t2.groupby('Medio')['Cantidad'].transform('sum')
+        temp_t2['Porcentaje'] = temp_t2['Porcentaje'].fillna(0.0)
         temp_t2['Porcentaje'] = temp_t2['Porcentaje'].map('{:.0%}'.format)
         st.dataframe(temp_t2, hide_index=True)
 
