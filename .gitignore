@@ -10,3 +10,4 @@ test.ipynb
 .streamlit/
 .streamlit/secrets.toml
 .streamlit/secrets.toml
+*.csv

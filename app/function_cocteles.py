@@ -22,17 +22,17 @@ def cargar_coctel_completo():
     temp_coctel_completo['id_fuente'] = temp_coctel_completo['id_fuente'].fillna(3)
     temp_coctel_fuente = temp_coctel_completo[['id', 'fecha_registro', 'acontecimiento', 'coctel', 'id_posicion',
     'lugar', 'color', 'id_fuente', 'fuente_nombre', 'id_canal',
-    'canal_nombre']].copy()
+    'canal_nombre']].copy().drop_duplicates()
     temp_coctel_fuente_programas = temp_coctel_fuente.copy()
     temp_coctel_fuente_fb = temp_coctel_completo[['id', 'fecha_registro', 'acontecimiento', 'coctel', 'id_posicion',
         'lugar', 'color', 'id_fuente', 'fuente_nombre', 'id_canal',
         'canal_nombre', 'num_reacciones', 'num_comentarios', 'num_compartidos',
-        'fecha_post', 'nombre_facebook_page']].copy()
+        'fecha_post', 'nombre_facebook_page']].copy().drop_duplicates()
     temp_coctel_fuente_actores = temp_coctel_completo[['id', 'fecha_registro', 'acontecimiento', 'coctel', 'id_posicion',
-        'lugar', 'color', 'id_fuente', 'fuente_nombre', 'id_canal','canal_nombre', 'nombre']].copy()
+        'lugar', 'color', 'id_fuente', 'fuente_nombre', 'id_canal','canal_nombre', 'nombre']].copy().drop_duplicates()
     temp_coctel_temas = temp_coctel_completo[['id', 'fecha_registro', 'acontecimiento', 'coctel', 'id_posicion',
         'lugar', 'color', 'id_fuente', 'fuente_nombre', 'id_canal',
-        'canal_nombre', 'descripcion']].copy()
+        'canal_nombre', 'descripcion']].copy().drop_duplicates()
 
     temp_coctel_fuente_programas['nombre_canal'] = temp_coctel_fuente_programas['canal_nombre']
     temp_coctel_fuente_fb['nombre_canal'] = temp_coctel_fuente_fb['canal_nombre']
