@@ -306,7 +306,7 @@ def coctel_dashboard():
                 x=temp_g1["eje_x"],
                 y=temp_g1["porcentaje"],
                 mode="lines+markers+text" if mostrar_todos else "lines+markers",
-                text=temp_g1["porcentaje"].map(lambda x: f"{x:.1f}")
+                text=temp_g1["porcentaje"].map(lambda x: f"{x:.1f}%")
                 if mostrar_todos
                 else None,
                 textposition="top center",
@@ -502,7 +502,7 @@ def coctel_dashboard():
             title="Porcentaje de cocteles por semana %",
             labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes_g5 else "Semana", "coctel_mean": "Porcentaje de cocteles %"},
             markers=True,
-            text=temp_g3["coctel_mean"].map(lambda x: f"{x:.1f}") if mostrar_todos else None,
+            text=temp_g3["coctel_mean"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
         )
 
         fig.update_traces(textposition="top center")
@@ -596,7 +596,7 @@ def coctel_dashboard():
             title="Top 3 lugares con mayor porcentaje de cocteles",
             labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes_sn2 else "Semana", "coctel": "Porcentaje de cocteles %"},
             markers=True,
-            text=temp_sn2["coctel"].map(lambda x: f"{x:.1f}") if mostrar_todos else None,
+            text=temp_sn2["coctel"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
         )
 
         fig_sn2.update_traces(textposition="top center")
@@ -689,7 +689,7 @@ def coctel_dashboard():
             title="Top 3 redes sociales con mayor porcentaje de cocteles",
             labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes_g6 else "Semana", "coctel": "Porcentaje de cocteles %"},
             markers=True,
-            text=temp_g6_redes["coctel"].map(lambda x: f"{x:.1f}") if mostrar_todos else None,
+            text=temp_g6_redes["coctel"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
         )
 
         fig_6.update_traces(textposition="top center")
@@ -738,7 +738,7 @@ def coctel_dashboard():
             title="Top 3 medios con mayor porcentaje de cocteles",
             labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes_g6 else "Semana", "coctel": "Porcentaje de cocteles %"},
             markers=True,
-            text=temp_g6_medio["coctel"].map(lambda x: f"{x:.1f}") if mostrar_todos else None,
+            text=temp_g6_medio["coctel"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
         )
 
         fig_6.update_traces(textposition="top center")
@@ -842,7 +842,7 @@ def coctel_dashboard():
             title=f"Crecimiento de cocteles por macroregión en {option_macroregion_g7} entre {fecha_inicio_g7.strftime('%d-%m-%Y')} y {fecha_fin_g7.strftime('%d-%m-%Y')}",
             labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes_g7 else "Semana", "coctel_mean": "Porcentaje de cocteles %"},
             markers=True,
-            text=temp_g7["coctel_mean"].map(lambda x: f"{x:.1f}") if mostrar_todos else None,
+            text=temp_g7["coctel_mean"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
         )
         fig_7.update_traces(textposition="top center")
         fig_7.update_layout(xaxis=dict(tickformat="%d-%m-%Y" if usar_fechas_viernes_g7 else ""))
@@ -1255,75 +1255,99 @@ def coctel_dashboard():
 
     with col1:
         fecha_inicio_g20 = st.date_input("Fecha Inicio g14",
-                                        format="DD.MM.YYYY")
-
+                                         format="DD.MM.YYYY")
     with col2:
         fecha_fin_g20 = st.date_input("Fecha Fin g14",
-                                    format="DD.MM.YYYY")
+                                      format="DD.MM.YYYY")
     with col3:
         option_nota_g20 = st.selectbox(
-        "Notas g14",
-        ("Con coctel", "Sin coctel", "Todos"))
-
+            "Notas g14",
+            ("Con coctel", "Sin coctel", "Todos"))
 
     option_lugar_g20 = st.multiselect("Lugar g14",
-                                    lugares_uniques,
-                                    lugares_uniques)
+                                      lugares_uniques,
+                                      lugares_uniques)
 
     fecha_inicio_g20 = pd.to_datetime(fecha_inicio_g20, format='%Y-%m-%d')
-    fecha_fin_g20 = pd.to_datetime(fecha_fin_g20, format='%Y-%m-%d')
+    fecha_fin_g20   = pd.to_datetime(fecha_fin_g20,   format='%Y-%m-%d')
 
-    temp_g20 = temp_coctel_fuente[(temp_coctel_fuente['fecha_registro'] >= fecha_inicio_g20) &
-                                    (temp_coctel_fuente['fecha_registro'] <= fecha_fin_g20) &
-                                    (temp_coctel_fuente['lugar'].isin(option_lugar_g20))].dropna()
+    temp_g20 = temp_coctel_fuente[
+        (temp_coctel_fuente['fecha_registro'] >= fecha_inicio_g20) &
+        (temp_coctel_fuente['fecha_registro'] <= fecha_fin_g20)   &
+        (temp_coctel_fuente['lugar'].isin(option_lugar_g20))
+    ].dropna()
 
     if option_nota_g20 == "Con coctel":
         temp_g20 = temp_g20[temp_g20['coctel'] == 1]
         titulo_g20 = "Porcentaje de notas que sean a favor, neutral y en contra con coctel"
     elif option_nota_g20 == "Sin coctel":
         temp_g20 = temp_g20[temp_g20['coctel'] == 0]
-        titulo_g20 = "Porcentaje de notas que sean a favor, neutral y en contra sin coctel" 
+        titulo_g20 = "Porcentaje de notas que sean a favor, neutral y en contra sin coctel"
     else:
         titulo_g20 = "Porcentaje de notas que sean a favor, neutral y en contra"
 
     if not temp_g20.empty:
 
-        temp_g20["mes"] = temp_g20['fecha_registro'].dt.month
-        temp_g20["año"] = temp_g20['fecha_registro'].dt.year
-        temp_g20["año_mes"] = temp_g20["año"].astype(str) + "-" + temp_g20["mes"].astype(str)
+        temp_g20["mes"]      = temp_g20['fecha_registro'].dt.month
+        temp_g20["año"]      = temp_g20['fecha_registro'].dt.year
+        temp_g20["año_mes"]  = temp_g20["año"].astype(str) + "-" + temp_g20["mes"].astype(str)
 
-        temp_g20["a_favor"] = 0
+        temp_g20["a_favor"]   = 0
         temp_g20["en_contra"] = 0
-        temp_g20["neutral"] = 0
+        temp_g20["neutral"]   = 0
 
-
-        temp_g20.loc[temp_g20['id_posicion'].isin([1, 2]), "a_favor"] = 1
+        temp_g20.loc[temp_g20['id_posicion'].isin([1, 2]), "a_favor"]   = 1
         temp_g20.loc[temp_g20['id_posicion'].isin([4, 5]), "en_contra"] = 1
-        temp_g20.loc[temp_g20['id_posicion'] == 3, "neutral"] = 1
+        temp_g20.loc[temp_g20['id_posicion'] == 3,      "neutral"]   = 1
 
+        temp_g20 = temp_g20[[
+            "año_mes", "fecha_registro", "acontecimiento", "lugar",
+            "a_favor", "en_contra", "neutral"
+        ]]
 
-        temp_g20 = temp_g20[["año_mes", "fecha_registro", "acontecimiento", "lugar", "a_favor", "en_contra", "neutral"]]
+        conteo_notas_20 = (
+            temp_g20
+            .groupby('año_mes')
+            .agg({'a_favor': 'sum', 'en_contra': 'sum', 'neutral': 'sum'})
+            .reset_index()
+        )
 
-
-        conteo_notas_20 = temp_g20.groupby('año_mes').agg({'a_favor': 'sum',
-                                                            'en_contra': 'sum',
-                                                            'neutral': 'sum'}).reset_index()
-
-        st.write(f"Porcentaje de notas que sean a favor, neutral y en contra en {option_lugar_g20} entre {fecha_inicio_g20.strftime('%d-%m-%Y')} y {fecha_fin_g20.strftime('%d-%m-%Y')}")
+        st.write(
+            f"Porcentaje de notas que sean a favor, neutral y en contra en "
+            f"{option_lugar_g20} entre {fecha_inicio_g20.strftime('%d-%m-%Y')} "
+            f"y {fecha_fin_g20.strftime('%d-%m-%Y')}"
+        )
 
         conteo_notas_20_pct = conteo_notas_20.copy()
+        conteo_notas_20_pct["total"] = (
+            conteo_notas_20_pct["a_favor"]
+          + conteo_notas_20_pct["en_contra"]
+          + conteo_notas_20_pct["neutral"]
+        )
 
-        conteo_notas_20_pct["total"] = conteo_notas_20_pct["a_favor"] + conteo_notas_20_pct["en_contra"] + conteo_notas_20_pct["neutral"]
+        # dos decimales
+        conteo_notas_20_pct["a_favor_pct"]   = (
+            conteo_notas_20_pct['a_favor']   / conteo_notas_20_pct['total'] * 100
+        ).round(1)
+        conteo_notas_20_pct["en_contra_pct"] = (
+            conteo_notas_20_pct['en_contra'] / conteo_notas_20_pct['total'] * 100
+        ).round(1)
+        conteo_notas_20_pct["neutral_pct"]   = (
+            conteo_notas_20_pct['neutral']   / conteo_notas_20_pct['total'] * 100
+        ).round(1)
 
-        #2 decimales
-        conteo_notas_20_pct["a_favor_pct"] = ((conteo_notas_20_pct['a_favor'] / conteo_notas_20_pct['total']) * 100).round(1)
-        conteo_notas_20_pct["en_contra_pct"] = ((conteo_notas_20_pct['en_contra'] / conteo_notas_20_pct['total']) * 100).round(1)
-        conteo_notas_20_pct["neutral_pct"] = ((conteo_notas_20_pct['neutral'] / conteo_notas_20_pct['total']) * 100).round(1)
+        # ← aquí cambiamos el orden: abajo a_favor, medio neutral, arriba en_contra
+        conteo_notas_20_pct = conteo_notas_20_pct[[
+            "año_mes", "a_favor_pct", "neutral_pct", "en_contra_pct"
+        ]]
+        conteo_notas_20_pct = conteo_notas_20_pct.dropna()
 
-        conteo_notas_20_pct = conteo_notas_20_pct[["año_mes", "a_favor_pct", "en_contra_pct", "neutral_pct"]]
-        conteo_notas_20_pct=conteo_notas_20_pct.dropna()
-        long_df = conteo_notas_20_pct.melt(id_vars=["año_mes"], var_name="Tipo de Nota", value_name="Porcentaje")
-        
+        long_df = conteo_notas_20_pct.melt(
+            id_vars=["año_mes"],
+            var_name="Tipo de Nota",
+            value_name="Porcentaje"
+        )
+
         fig_20 = px.bar(
             long_df,
             x="año_mes",
@@ -1334,27 +1358,30 @@ def coctel_dashboard():
             labels={"año_mes": "Año y Mes", "Porcentaje": "Porcentaje"},
             text=long_df["Porcentaje"].map("{:.1f}%".format) if mostrar_todos else None,
             color_discrete_map={
-                "a_favor_pct": "blue",
+                "a_favor_pct":   "blue",
                 "en_contra_pct": "red",
-                "neutral_pct": "gray",
+                "neutral_pct":   "gray",
             },
         )
 
-        fig_20.update_layout(barmode='stack', xaxis={'categoryorder': 'category ascending'})
+        fig_20.update_layout(
+            barmode='stack',
+            xaxis={'categoryorder': 'category ascending'}
+        )
 
-        fig_20.for_each_trace(lambda t: t.update(name=t.name.replace('_pct', ' (%)')))
+        fig_20.for_each_trace(
+            lambda t: t.update(name=t.name.replace('_pct', ' (%)'))
+        )
 
-        conteo_notas_20_pct["a_favor_pct"] = conteo_notas_20_pct["a_favor_pct"].map("{:.1f}".format)
-        conteo_notas_20_pct["en_contra_pct"] = conteo_notas_20_pct["en_contra_pct"].map("{:.1f}".format)
-        conteo_notas_20_pct["neutral_pct"] = conteo_notas_20_pct["neutral_pct"].map("{:.1f}".format)
+        # renombrar para la tabla final
+        conteo_notas_20_pct["A favor (%)"]   = conteo_notas_20_pct["a_favor_pct"].map("{:.1f}".format)
+        conteo_notas_20_pct["En contra (%)"] = conteo_notas_20_pct["en_contra_pct"].map("{:.1f}".format)
+        conteo_notas_20_pct["Neutral (%)"]   = conteo_notas_20_pct["neutral_pct"].map("{:.1f}".format)
 
-        conteo_notas_20_pct = conteo_notas_20_pct.rename(columns={
-            "a_favor_pct": "A favor (%)",
-            "en_contra_pct": "En contra (%)",
-            "neutral_pct": "Neutral (%)"
-        })
-
-        st.dataframe(conteo_notas_20_pct, hide_index=True)
+        st.dataframe(
+            conteo_notas_20_pct[["año_mes", "A favor (%)", "Neutral (%)", "En contra (%)"]],
+            hide_index=True
+        )
 
         st.plotly_chart(fig_20)
         st.write("Los porcentajes se calcularon sobre el total de notas considerando coctel y otras fuentes")
@@ -1581,7 +1608,7 @@ def coctel_dashboard():
             y="descripcion",
             title=titulo,
             orientation='h',
-            text=df_top_10_24["porcentaje"].map(lambda x: f"{x:.1f}") if mostrar_todos else None,  # Muestra valores si mostrar_todos es True
+            text=df_top_10_24["porcentaje"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,  # Muestra valores si mostrar_todos es True
             labels={'porcentaje': 'Porcentaje %', 'descripcion': 'Temas'}
         )
 
