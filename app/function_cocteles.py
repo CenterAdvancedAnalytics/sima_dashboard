@@ -2157,3 +2157,228 @@ def coctel_dashboard():
 
     else:
         st.warning("No hay datos para mostrar")
+    
+
+    #%% 32.- Impactos por programa
+    st.subheader("32.- Impactos por programa")
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        fecha_inicio_g32 = st.date_input(
+            "Fecha Inicio g32",
+            format="DD.MM.YYYY",
+            key="fecha_inicio_g32"
+        )
+    with col2:
+        fecha_fin_g32 = st.date_input(
+            "Fecha Fin g32",
+            format="DD.MM.YYYY",
+            key="fecha_fin_g32"
+        )
+    with col3:
+        medio_g32 = st.selectbox(
+            "Medio g32",
+            ("Radio", "TV", "Redes"),
+            key="medio_g32"
+        )
+    with col4:
+        region_g32 = st.selectbox(
+            "Región g32",
+            lugares_uniques,
+            key="region_g32"
+        )
+
+    fecha_inicio_g32 = pd.to_datetime(fecha_inicio_g32).normalize()
+    fecha_fin_g32   = pd.to_datetime(fecha_fin_g32).normalize()
+
+    if medio_g32 in ("Radio", "TV"):
+        temp_g32 = temp_coctel_fuente_programas.copy()
+        prog_col_g32 = "nombre_canal"
+        fuente_val = 1 if medio_g32 == "Radio" else 2
+    else: 
+        temp_g32 = temp_coctel_fuente_fb.copy()
+        prog_col_g32 = "nombre_facebook_page"
+        fuente_val = 3
+
+    temp_g32 = temp_g32[
+        (temp_g32["fecha_registro"] >= fecha_inicio_g32) &
+        (temp_g32["fecha_registro"] <= fecha_fin_g32)   &
+        (temp_g32["id_fuente"]    == fuente_val)       &
+        (temp_g32["lugar"]        == region_g32)
+    ]
+
+    if not temp_g32.empty:
+        # 1) Impactos con cóctel
+        resumen_coctel = (
+            temp_g32
+            .groupby(prog_col_g32, as_index=False)
+            .agg(**{"Impactos con cóctel": ("coctel", "sum")})
+            .sort_values(prog_col_g32)
+        )
+        st.write("Impactos con cóctel por programa")
+        st.dataframe(resumen_coctel.rename(columns={prog_col_g32: "Programa"}), hide_index=True)
+
+        # 2) Total de impactos
+        resumen_total = (
+            temp_g32
+            .groupby(prog_col_g32, as_index=False)
+            .agg(**{"Total de impactos": ("id", "count")})
+            .sort_values(prog_col_g32)
+        )
+        st.write("Total de impactos por programa")
+        st.dataframe(resumen_total.rename(columns={prog_col_g32: "Programa"}), hide_index=True)
+    else:
+        st.warning("No hay datos para la selección actual.")
+
+    #%% 33.- Distribución de cócteles por medio
+    st.subheader("33.- Distribución de cócteles por medio")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        fecha_inicio_g33 = st.date_input(
+            "Fecha Inicio g33",
+            format="DD.MM.YYYY",
+            key="fecha_inicio_g33"
+        )
+    with col2:
+        fecha_fin_g33 = st.date_input(
+            "Fecha Fin g33",
+            format="DD.MM.YYYY",
+            key="fecha_fin_g33"
+        )
+
+    fecha_inicio_g33 = pd.to_datetime(fecha_inicio_g33).normalize()
+    fecha_fin_g33   = pd.to_datetime(fecha_fin_g33).normalize()
+
+    temp_g33 = temp_coctel_fuente[
+        (temp_coctel_fuente["fecha_registro"] >= fecha_inicio_g33) &
+        (temp_coctel_fuente["fecha_registro"] <= fecha_fin_g33) &
+        (temp_coctel_fuente["coctel"] == 1)
+    ]
+
+    if not temp_g33.empty:
+        # Contar por medio
+        conteo_g33 = (
+            temp_g33
+            .groupby("id_fuente", as_index=False)
+            .agg({"id": "count"})
+            .rename(columns={"id": "count"})
+        )
+        # Mapear nombre de medio
+        conteo_g33["Fuente"] = conteo_g33["id_fuente"].map(id_fuente_dict)
+
+        # Pie chart con valores y porcentajes, y colores fijos
+        fig_g33 = px.pie(
+            conteo_g33,
+            values="count",
+            names="Fuente",
+            color="Fuente",
+            color_discrete_map={
+                "Radio": "blue",
+                "Redes": "red",
+                "TV": "gray"
+            }
+        )
+        fig_g33.update_traces(
+            textposition="inside",
+            textinfo="value+percent"
+        )
+
+        st.plotly_chart(fig_g33)
+    else:
+        st.warning("No hay datos para la selección actual.")
+
+    #%% 34.- Notas a favor vs en contra
+    st.subheader("34.- Notas a favor vs en contra")
+
+    # Inputs
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        fecha_inicio_g34 = st.date_input(
+            "Fecha Inicio g34",
+            format="DD.MM.YYYY",
+            key="fecha_inicio_g34"
+        )
+    with col2:
+        fecha_fin_g34 = st.date_input(
+            "Fecha Fin g34",
+            format="DD.MM.YYYY",
+            key="fecha_fin_g34"
+        )
+    with col3:
+        medio_g34 = st.selectbox(
+            "Medio g34",
+            ("Radio", "TV", "Redes", "Todos"),
+            key="medio_g34"
+        )
+    with col4:
+        regiones_g34 = st.multiselect(
+            "Región g34",
+            lugares_uniques,
+            default=lugares_uniques,
+            key="region_g34"
+        )
+
+    # Normalize fechas
+    fecha_inicio_g34 = pd.to_datetime(fecha_inicio_g34).normalize()
+    fecha_fin_g34   = pd.to_datetime(fecha_fin_g34).normalize()
+
+    # Filtrado base
+    temp_g34 = temp_coctel_fuente[
+        (temp_coctel_fuente["fecha_registro"] >= fecha_inicio_g34) &
+        (temp_coctel_fuente["fecha_registro"] <= fecha_fin_g34)   &
+        (temp_coctel_fuente["lugar"].isin(regiones_g34))
+    ]
+    # Filtrar por medio si no es "Todos"
+    if medio_g34 != "Todos":
+        idf = {"Radio":1,"TV":2,"Redes":3}[medio_g34]
+        temp_g34 = temp_g34[temp_g34["id_fuente"] == idf]
+
+    if temp_g34.empty:
+        st.warning("No hay datos para la selección actual.")
+    else:
+        # Preparar métricas por mes
+        df34 = temp_g34.copy()
+        df34["mes"] = df34["fecha_registro"].dt.to_period("M").dt.to_timestamp()
+        df34["a_favor"]   = df34["id_posicion"].isin([1,2]).astype(int)
+        df34["en_contra"] = df34["id_posicion"].isin([4,5]).astype(int)
+
+        resumen34 = (
+            df34
+            .groupby("mes", as_index=False)
+            .agg(
+                a_favor   = ("a_favor", "sum"),
+                en_contra = ("en_contra", "sum"),
+                total     = ("id", "count")
+            )
+        )
+        resumen34["A favor (%)"]   = resumen34["a_favor"]   / resumen34["total"] * 100
+        resumen34["En contra (%)"] = resumen34["en_contra"] / resumen34["total"] * 100
+
+        # Melt para Plotly
+        long34 = resumen34.melt(
+            id_vars=["mes"],
+            value_vars=["A favor (%)","En contra (%)"],
+            var_name="Tipo",
+            value_name="Porcentaje"
+        )
+        # Etiqueta de eje X
+        long34["mes_str"] = long34["mes"].dt.strftime("%b-%y")
+
+        # Línea con porcentajes y markers
+        fig34 = px.line(
+            long34,
+            x="mes_str",
+            y="Porcentaje",
+            color="Tipo",
+            markers=True,
+            color_discrete_map={
+                "A favor (%)": "blue",
+                "En contra (%)": "red"
+            },
+            labels={"mes_str":"Mes","Porcentaje":"% sobre total","Tipo":""}
+        )
+        fig34.update_traces(text=long34["Porcentaje"].round(0).astype(int).astype(str)+"%", textposition="top center")
+        fig34.update_layout(xaxis_tickangle=45)
+
+        st.plotly_chart(fig34)
