@@ -15,6 +15,7 @@ queries = {
             pr.id_fuente AS id_fuente,
             f.nombre AS fuente_nombre,
             pr.id_canal AS id_canal,
+            pr.nombre AS programa_nombre,
             c.nombre AS canal_nombre,
             ac.nombre AS nombre,
             fb.num_reacciones,
