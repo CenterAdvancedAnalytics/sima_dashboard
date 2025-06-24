@@ -6,6 +6,8 @@ from utils import get_query
 from function_cocteles import coctel_dashboard
 from function_users import usarios_acontecimientos_dashboard
 
+from dotenv import load_dotenv
+load_dotenv()
     
 #%% Formateo del nombre del sitio y site config
 st.set_page_config(page_title="Dashboard SIMA", layout="centered")
