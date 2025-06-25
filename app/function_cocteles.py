@@ -2225,13 +2225,11 @@ def coctel_dashboard():
 
     if medio_g32 in ("Radio", "TV"):
         temp_g32 = temp_coctel_fuente_programas.copy()
-        prog_col_g32 = ["nombre_canal",'programa_nombre']
-        column_mapping_g32 = {"nombre_canal": "Canal", "programa_nombre": "Programa"}
+        prog_col_g32 = "nombre_canal"
         fuente_val = 1 if medio_g32 == "Radio" else 2
     else: 
         temp_g32 = temp_coctel_fuente_fb.copy()
-        prog_col_g32 = ["nombre_facebook_page"]
-        column_mapping_g32 = {"nombre_facebook_page": "Página Facebook"}
+        prog_col_g32 = "nombre_facebook_page"
         fuente_val = 3
 
     temp_g32 = temp_g32[
@@ -2239,20 +2237,28 @@ def coctel_dashboard():
         (temp_g32["fecha_registro"] <= fecha_fin_g32)   &
         (temp_g32["id_fuente"]    == fuente_val)       &
         (temp_g32["lugar"]        == region_g32)
-    ].copy()
+    ]
 
     if not temp_g32.empty:
-        # Total de impactos
+        # 1) Impactos con cóctel
+        resumen_coctel = (
+            temp_g32
+            .groupby(prog_col_g32, as_index=False)
+            .agg(**{"Impactos con cóctel": ("coctel", "sum")})
+            .sort_values(prog_col_g32)
+        )
+        st.write("Impactos con cóctel por programa")
+        st.dataframe(resumen_coctel.rename(columns={prog_col_g32: "Programa"}), hide_index=True)
+
+        # 2) Total de impactos
         resumen_total = (
             temp_g32
             .groupby(prog_col_g32, as_index=False)
             .agg(**{"Total de impactos": ("id", "count")})
             .sort_values(prog_col_g32)
         )
-        
         st.write("Total de impactos por programa")
-        st.dataframe(resumen_total.rename(columns=column_mapping_g32), hide_index=True)
-        
+        st.dataframe(resumen_total.rename(columns={prog_col_g32: "Programa"}), hide_index=True)
     else:
         st.warning("No hay datos para la selección actual.")
 

@@ -31,7 +31,7 @@ class DashboardApp:
     
     def show_header(self):
         """Mostrar header de la aplicación"""
-        col1, col2, col3 = st.columns([2, 3, 1])
+        col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
         
         with col1:
             st.title("📊 Dashboard SIMA")
@@ -43,6 +43,11 @@ class DashboardApp:
                 st.success(f"👤 Bienvenido, {user['name']} ({user['role']})")
                 
         with col3:
+            # Botón de cambiar contraseña
+            if st.button("🔑 Cambiar Contraseña", type="secondary"):
+                st.session_state["show_password_change"] = True
+                
+        with col4:
             # Botón de logout
             if st.button("🚪 Cerrar Sesión", type="secondary"):
                 self.auth_manager.logout()
@@ -231,6 +236,10 @@ class DashboardApp:
             
         # Mostrar header
         self.show_header()
+        
+        # Renderizar modales de autenticación (IMPORTANTE: agregar esta línea)
+        self.auth_manager.render_password_change_modal()
+        self.auth_manager.render_admin_panel()
         
         # Mostrar fecha de actualización
         self.show_last_update()

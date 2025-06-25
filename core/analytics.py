@@ -817,7 +817,47 @@ class AnalyticsEngine:
         conteo["Fuente"] = conteo["id_fuente"].map(ID_FUENTE_DICT)
 
         return conteo
-
+    
+    @staticmethod
+    def calculate_program_impacts_complete(temp_data: pd.DataFrame, medio: str) -> tuple:
+        """
+        Calcula tanto los impactos con cóctel como el total de impactos por programa
+        
+        Args:
+            temp_data: DataFrame filtrado con los datos
+            medio: Tipo de medio ("Radio", "TV", "Redes")
+        
+        Returns:
+            tuple: (result_coctel, result_total) - DataFrames con impactos con cóctel y total
+        """
+        if medio in ("Radio", "TV"):
+            prog_cols = ["nombre_canal", "programa_nombre"]
+        else:
+            prog_cols = ["nombre_facebook_page"]
+        
+        try:
+            # 1) Impactos con cóctel
+            result_coctel = (
+                temp_data
+                .groupby(prog_cols, as_index=False)
+                .agg(**{"Impactos con cóctel": ("coctel", "sum")})
+                .sort_values(prog_cols)
+            )
+            
+            # 2) Total de impactos
+            result_total = (
+                temp_data
+                .groupby(prog_cols, as_index=False)
+                .agg(**{"Total de impactos": ("id", "count")})
+                .sort_values(prog_cols)
+            )
+            
+            return result_coctel, result_total
+            
+        except Exception as e:
+            print(f"Error en calculate_program_impacts_complete: {e}")
+            return pd.DataFrame(), pd.DataFrame()
+        
     @staticmethod
     def calculate_favor_vs_contra_monthly(data: pd.DataFrame, source: str) -> pd.DataFrame:
         """Calcular notas a favor vs en contra por mes (Sección 34)"""

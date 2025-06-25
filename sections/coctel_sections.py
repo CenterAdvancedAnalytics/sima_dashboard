@@ -1193,18 +1193,28 @@ class CoctelSections:
             ]
         
         if not temp_data.empty:
-            result = self.analytics.calculate_program_impacts(temp_data, medio)
+            # Obtener ambos resultados: impactos con cóctel y total de impactos
+            result_coctel, result_total = self.analytics.calculate_program_impacts_complete(temp_data, medio)
             
-            if not result.empty:
-                st.write("Total de impactos por programa")
-                
-                # Renombrar columnas para mejor presentación
-                if medio in ("Radio", "TV"):
-                    column_mapping = {"nombre_canal": "Canal", "programa_nombre": "Programa"}
-                else:
-                    column_mapping = {"nombre_facebook_page": "Página Facebook"}
-                
-                st.dataframe(result.rename(columns=column_mapping), hide_index=True)
+            # Definir mapeo de columnas para mejor presentación
+            if medio in ("Radio", "TV"):
+                column_mapping = {"nombre_canal": "Canal", "programa_nombre": "Programa"}
+            else:
+                column_mapping = {"nombre_facebook_page": "Página Facebook"}
+            
+            # Mostrar impactos con cóctel
+            if not result_coctel.empty:
+                st.write("**Impactos con cóctel por programa**")
+                st.dataframe(result_coctel.rename(columns=column_mapping), hide_index=True)
+            else:
+                st.warning("No hay impactos con cóctel para la selección actual.")
+            
+            st.write("")  # Espacio entre tablas
+            
+            # Mostrar total de impactos
+            if not result_total.empty:
+                st.write("**Total de impactos por programa**")
+                st.dataframe(result_total.rename(columns=column_mapping), hide_index=True)
             else:
                 st.warning("No hay datos para la selección actual.")
         else:
@@ -1248,6 +1258,7 @@ class CoctelSections:
                 st.warning("No hay datos para la selección actual.")
         else:
             st.warning("No hay datos para la selección actual.")
+            
     def section_27_favor_contra_mensual(self, global_filters: Dict[str, Any]):
         """27.- Notas a favor vs en contra"""
         st.subheader("27.- Notas a favor vs en contra")

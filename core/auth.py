@@ -194,6 +194,25 @@ class AuthManager:
         
         return user_level >= required_level
     
+    def change_display_name(self, username: str, password: str, new_name: str) -> bool:
+        """Cambiar nombre de visualización (usuario debe autenticarse)"""
+        if not self.authenticate(username, password):
+            return False
+        
+        if not new_name or len(new_name.strip()) < 2:
+            return False
+            
+        self.users[username]["name"] = new_name.strip()
+        self.users[username]["name_changed_at"] = datetime.now().isoformat()
+        self._save_users()
+        
+        # Actualizar también en session_state si es el usuario actual
+        if "user" in st.session_state and st.session_state["user"]["username"] == username:
+            st.session_state["user"]["name"] = new_name.strip()
+        
+        return True
+    
+    
     def change_password(self, username: str, old_password: str, new_password: str) -> bool:
         """Cambiar contraseña (usuario debe conocer la contraseña actual)"""
         if not self.authenticate(username, old_password):
@@ -383,7 +402,7 @@ class AuthManager:
         
         st.markdown("### Panel de Administración")
         
-        tab1, tab2, tab3 = st.tabs(["Usuarios", "Crear Usuario", "Resetear Contraseña"])
+        tab1, tab2, tab3, tab4 = st.tabs(["Usuarios", "Crear Usuario", "Resetear Contraseña", "Cambiar Nombres"])
         
         with tab1:
             st.markdown("#### Usuarios del Sistema")
@@ -447,6 +466,34 @@ class AuthManager:
                         st.success(f"Contraseña de {target_user} reseteada exitosamente")
                     else:
                         st.error("Error al resetear contraseña. Verifica tu contraseña.")
+        
+        with tab4:
+            st.markdown("#### Cambiar Nombre de Usuario")
+            with st.form("admin_change_name_form"):
+                target_user = st.selectbox("Usuario", list(self.users.keys()), key="admin_name_user")
+                current_name = self.users.get(target_user, {}).get("name", "")
+                st.info(f"Nombre actual: **{current_name}**")
+                new_display_name = st.text_input("Nuevo nombre", value=current_name)
+                admin_password = st.text_input("Tu contraseña (confirmación)", type="password", key="admin_name_pass")
+                
+                if st.form_submit_button("Cambiar Nombre"):
+                    admin_user = self.authenticate(user["username"], admin_password)
+                    if not admin_user or admin_user["role"] != "admin":
+                        st.error("Contraseña de administrador incorrecta")
+                    elif not new_display_name.strip() or len(new_display_name.strip()) < 2:
+                        st.error("El nombre debe tener al menos 2 caracteres")
+                    else:
+                        self.users[target_user]["name"] = new_display_name.strip()
+                        self.users[target_user]["name_changed_by"] = user["username"]
+                        self.users[target_user]["name_changed_at"] = datetime.now().isoformat()
+                        self._save_users()
+                        
+                        # Actualizar session_state si es el usuario actual
+                        if target_user == user["username"]:
+                            st.session_state["user"]["name"] = new_display_name.strip()
+                        
+                        st.success(f"Nombre de {target_user} cambiado exitosamente")
+                        st.rerun()
         
         if st.button("Cerrar Panel"):
             st.session_state["show_admin_panel"] = False
