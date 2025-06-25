@@ -71,21 +71,6 @@ class FilterManager:
         else:
             filters['use_global_locations'] = False
             
-        # Filtro de fuentes global (opcional)
-        st.sidebar.subheader("Fuentes")
-        use_global_sources = st.sidebar.checkbox("Usar fuentes globales", value=False)
-        
-        if use_global_sources:
-            global_fuentes = st.sidebar.multiselect(
-                "Fuentes Globales",
-                ["Radio", "TV", "Redes"],
-                default=["Radio", "TV", "Redes"]
-            )
-            filters['use_global_sources'] = True
-            filters['global_fuentes'] = global_fuentes
-        else:
-            filters['use_global_sources'] = False
-            
         # Mostrar información de filtros
         self._display_filter_info(filters)
         
@@ -103,10 +88,6 @@ class FilterManager:
         if filters.get('use_global_locations'):
             lugares = filters['global_lugares']
             st.sidebar.info(f"📍 {len(lugares)} ubicaciones seleccionadas")
-            
-        if filters.get('use_global_sources'):
-            fuentes = filters['global_fuentes']
-            st.sidebar.info(f"📡 Fuentes: {', '.join(fuentes)}")
     
     def get_section_dates(self, section_name: str, global_filters: Dict[str, Any],
                          default_days: int = 30) -> Tuple[pd.Timestamp, pd.Timestamp]:

@@ -72,12 +72,3 @@ class AuthManager:
                     st.rerun()
                 else:
                     st.error("Usuario o contraseña incorrectos")
-                    
-        # Información de usuarios de demo
-        with st.expander("👤 Usuarios de Demostración"):
-            st.markdown("""
-            **Credenciales de prueba:**
-            - **Admin**: admin / admin123
-            - **Analista**: analista / analista123  
-            - **Viewer**: viewer / viewer123
-            """)

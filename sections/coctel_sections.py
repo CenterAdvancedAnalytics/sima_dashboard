@@ -140,16 +140,16 @@ class CoctelSections:
         self.section_24_mensajes_fuerza(global_filters, mostrar_todos)
         st.markdown("---")
         
-        # SECCIÓN 32 - Impactos por programa
-        self.section_32_impactos_programa(global_filters)
+        # SECCIÓN 25 - Impactos por programa
+        self.section_25_impactos_programa(global_filters)
         st.markdown("---")
         
-        # SECCIÓN 33 - Distribución por medio
-        self.section_33_distribucion_medio(global_filters)
+        # SECCIÓN 26 - Distribución por medio
+        self.section_26_distribucion_medio(global_filters)
         st.markdown("---")
         
-        # SECCIÓN 34 - A favor vs en contra mensual
-        self.section_34_favor_contra_mensual(global_filters)
+        # SECCIÓN 27 - A favor vs en contra mensual
+        self.section_27_favor_contra_mensual(global_filters)
         
     # =====================================================
     # IMPLEMENTACIÓN DE TODAS LAS SECCIONES
@@ -210,7 +210,13 @@ class CoctelSections:
         
         col1, col2 = st.columns(2)
         with col1:
-            option_lugar = self.filter_manager.get_section_locations("s8", global_filters, multi=False)
+            # Local location selector - independent of global filters
+            available_locations = self.temp_coctel_fuente['lugar'].dropna().unique()
+            option_lugar = st.selectbox(
+                "Lugar", 
+                options=sorted(available_locations), 
+                key="lugar_s8"
+            )
         with col2:
             option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s8")
         
@@ -560,7 +566,13 @@ class CoctelSections:
         with col1:
             option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s15")
         with col2:
-            option_lugar = self.filter_manager.get_section_locations("s15", global_filters, multi=False)
+            # Local location selector - independent of global filters
+            available_locations = self.temp_coctel_fuente['lugar'].dropna().unique()
+            option_lugar = st.selectbox(
+                "Lugar", 
+                options=sorted(available_locations), 
+                key="lugar_s15"
+            )
         with col3:
             option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s15")
         
@@ -608,7 +620,13 @@ class CoctelSections:
         with col1:
             option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s16")
         with col2:
-            option_lugar = self.filter_manager.get_section_locations("s16", global_filters, multi=False)
+            # Local location selector - independent of global filters
+            available_locations = self.temp_coctel_temas['lugar'].dropna().unique()
+            option_lugar = st.selectbox(
+                "Lugar", 
+                options=sorted(available_locations), 
+                key="lugar_s16"
+            )
         with col3:
             option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s16")
         
@@ -677,7 +695,13 @@ class CoctelSections:
         with col1:
             option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s17")
         with col2:
-            option_lugar = self.filter_manager.get_section_locations("s17", global_filters, multi=False)
+            # Local location selector - independent of global filters
+            available_locations = self.temp_coctel_temas['lugar'].dropna().unique()
+            option_lugar = st.selectbox(
+                "Lugar", 
+                options=sorted(available_locations), 
+                key="lugar_s17"
+            )
         with col3:
             option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s17")
         
@@ -727,7 +751,17 @@ class CoctelSections:
         with col1:
             option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes"), key="fuente_s18")
         with col2:
-            option_lugar = self.filter_manager.get_section_locations("s18", global_filters, multi=False)
+            # Local location selector - independent of global filters
+            # Get available locations from both dataframes
+            available_locations_programas = self.temp_coctel_fuente_programas['lugar'].dropna().unique()
+            available_locations_fb = self.temp_coctel_fuente_fb['lugar'].dropna().unique()
+            all_locations = sorted(set(list(available_locations_programas) + list(available_locations_fb)))
+            
+            option_lugar = st.selectbox(
+                "Lugar", 
+                options=all_locations, 
+                key="lugar_s18"
+            )
         with col3:
             option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s18")
         
@@ -820,7 +854,13 @@ class CoctelSections:
         with col1:
             option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s20")
         with col2:
-            option_lugar = self.filter_manager.get_section_locations("s20", global_filters, multi=False)
+            # Local location selector - independent of global filters
+            available_locations = self.temp_coctel_fuente_actores['lugar'].dropna().unique()
+            option_lugar = st.selectbox(
+                "Lugar", 
+                options=sorted(available_locations), 
+                key="lugar_s20"
+            )
         with col3:
             option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s20")
         
@@ -1117,9 +1157,9 @@ class CoctelSections:
         else:
             st.warning("No hay datos para mostrar")
     
-    def section_32_impactos_programa(self, global_filters: Dict[str, Any]):
-        """32.- Impactos por programa"""
-        st.subheader("32.- Impactos por programa")
+    def section_25_impactos_programa(self, global_filters: Dict[str, Any]):
+        """25.- Impactos por programa"""
+        st.subheader("25.- Impactos por programa")
         
         fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s32", global_filters)
         
@@ -1127,7 +1167,17 @@ class CoctelSections:
         with col1:
             medio = st.selectbox("Medio", ("Radio", "TV", "Redes"), key="medio_s32")
         with col2:
-            region = self.filter_manager.get_section_locations("s32", global_filters, multi=False)
+            # Local location selector - independent of global filters
+            # Get available locations from both dataframes
+            available_locations_programas = self.temp_coctel_fuente_programas['lugar'].dropna().unique()
+            available_locations_fb = self.temp_coctel_fuente_fb['lugar'].dropna().unique()
+            all_locations = sorted(set(list(available_locations_programas) + list(available_locations_fb)))
+            
+            region = st.selectbox(
+                "Lugar", 
+                options=all_locations, 
+                key="lugar_s32"
+            )
         
         if medio in ("Radio", "TV"):
             temp_data = self.temp_coctel_fuente_programas[
@@ -1160,9 +1210,9 @@ class CoctelSections:
         else:
             st.warning("No hay datos para la selección actual.")
     
-    def section_33_distribucion_medio(self, global_filters: Dict[str, Any]):
-        """33.- Distribución de cócteles por medio"""
-        st.subheader("33.- Distribución de cócteles por medio")
+    def section_26_distribucion_medio(self, global_filters: Dict[str, Any]):
+        """26.- Distribución de cócteles por medio"""
+        st.subheader("26.- Distribución de cócteles por medio")
         
         fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s33", global_filters)
         
@@ -1198,9 +1248,9 @@ class CoctelSections:
                 st.warning("No hay datos para la selección actual.")
         else:
             st.warning("No hay datos para la selección actual.")
-    def section_34_favor_contra_mensual(self, global_filters: Dict[str, Any]):
-        """34.- Notas a favor vs en contra"""
-        st.subheader("34.- Notas a favor vs en contra")
+    def section_27_favor_contra_mensual(self, global_filters: Dict[str, Any]):
+        """27.- Notas a favor vs en contra"""
+        st.subheader("27.- Notas a favor vs en contra")
 
         fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s34", global_filters)
 
@@ -1252,13 +1302,10 @@ class CoctelSections:
         
         fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s1", global_filters)
         
-        if not global_filters.get('use_global_sources'):
-            option_fuente = st.multiselect(
-                "Fuente", ["Radio", "TV", "Redes"], 
-                ["Radio", "TV", "Redes"], key="fuente_s1"
-            )
-        else:
-            option_fuente = global_filters['global_fuentes']
+        option_fuente = st.multiselect(
+            "Fuente", ["Radio", "TV", "Redes"], 
+            ["Radio", "TV", "Redes"], key="fuente_s1"
+        )
             
         option_lugares = self.filter_manager.get_section_locations("s1", global_filters, multi=True)
         
@@ -1291,7 +1338,13 @@ class CoctelSections:
                 "Notas", ("Coctel noticias", "Otras fuentes", "Todas"), key="coctel_s2"
             )
         with col2:
-            option_lugar = self.filter_manager.get_section_locations("s2", global_filters, multi=False)
+            # Local location selector - independent of global filters
+            available_locations = self.temp_coctel_fuente['lugar'].dropna().unique()
+            option_lugar = st.selectbox(
+                "Lugar", 
+                options=sorted(available_locations), 
+                key="lugar_s2"
+            )
         
         temp_data = self.temp_coctel_fuente[
             (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
@@ -1320,7 +1373,13 @@ class CoctelSections:
         with col1:
             option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s3")
         with col2:
-            option_lugar = self.filter_manager.get_section_locations("s3", global_filters, multi=False)
+            # Local location selector - independent of global filters
+            available_locations = self.temp_coctel_fuente['lugar'].dropna().unique()
+            option_lugar = st.selectbox(
+                "Lugar", 
+                options=sorted(available_locations), 
+                key="lugar_s3"
+            )
         
         usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_s3")
         
@@ -1374,7 +1433,13 @@ class CoctelSections:
         
         col1, col2 = st.columns(2)
         with col1:
-            option_lugar = self.filter_manager.get_section_locations("s4", global_filters, multi=False)
+            # Local location selector - independent of global filters
+            available_locations = self.temp_coctel_fuente_notas['lugar'].dropna().unique()
+            option_lugar = st.selectbox(
+                "Lugar", 
+                options=sorted(available_locations), 
+                key="lugar_s4"
+            )
         with col2:
             option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s4")
         
@@ -1542,7 +1607,7 @@ class CoctelSections:
                 st.warning("No hay datos suficientes")
         else:
             st.warning("No hay datos para mostrar")
-    
+        
     def section_6_top_medios(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """6.- Top 3 mejores radios, redes, tv"""
         st.subheader("6.- Top 3 mejores radios, redes, tv en lugar y fecha específica")
@@ -1553,7 +1618,17 @@ class CoctelSections:
         with col1:
             option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes"), key="fuente_s6")
         with col2:
-            option_lugar = self.filter_manager.get_section_locations("s6", global_filters, multi=False)
+            # Local location selector - independent of global filters
+            # Get available locations from both dataframes
+            available_locations_programas = self.temp_coctel_fuente_programas['lugar'].dropna().unique()
+            available_locations_fb = self.temp_coctel_fuente_fb['lugar'].dropna().unique()
+            all_locations = sorted(set(list(available_locations_programas) + list(available_locations_fb)))
+            
+            option_lugar = st.selectbox(
+                "Lugar", 
+                options=all_locations, 
+                key="lugar_s6"
+            )
         
         usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_s6")
         

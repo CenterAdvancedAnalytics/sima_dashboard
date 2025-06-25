@@ -141,11 +141,9 @@ class DashboardApp:
         - 11-14: Análisis por región/fuente
         - 15-20: Análisis de contenido
         - 21-24: Análisis comparativo
-        - 32-34: Reportes especializados
+        - 25-26: Reportes especializados
         """)
         
-        # Indicador de progreso
-        st.sidebar.success("✅ 30+ secciones migradas y operativas")
     
     def run_coctel_dashboard(self):
         """Ejecutar dashboard completo de cocteles con todas las secciones"""
@@ -182,16 +180,7 @@ class DashboardApp:
         
         # Título principal y descripción
         st.header("🍸 Análisis Completo de Cocteles")
-        
-        # Información del dashboard
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.info("📊 **30+ Secciones** completamente migradas")
-        with col2:
-            st.info("🗓️ **Filtros globales** configurables en sidebar")
-        with col3:
-            st.info("📈 **Scroll down** para navegar secuencialmente")
-        
+                
         # Instrucciones de uso
         with st.expander("💡 Cómo usar el dashboard"):
             st.markdown("""
@@ -200,57 +189,19 @@ class DashboardApp:
             2. Selecciona el rango de fechas deseado
             3. Activa "Usar ubicaciones globales" 
             4. Selecciona las ubicaciones de interés
-            5. ¡Los filtros se aplicarán automáticamente a TODAS las secciones!
+            5. ¡Los filtros se aplicarán automáticamente a TODAS las secciones que puedan aplicar!
             
             **📊 Navegación:**
             - **Scroll down**: Para ver todas las secciones en orden
             - **Checkbox global**: "Mostrar todos los porcentajes" afecta los gráficos
             - **Filtros específicos**: Desactiva los globales para control por sección
-            
-            **⚡ Performance:**
-            - Los datos se cargan una vez y se reutilizan
-            - Los filtros se aplican instantáneamente
-            - Todas las secciones están optimizadas
             """)
         
         st.markdown("---")
         
         # Renderizar TODAS las secciones en orden secuencial
         sections.render_all_sections(global_filters)
-        
-        # Footer con información de la migración
-        st.markdown("---")
-        st.markdown("### 🎉 ¡Dashboard Completamente Migrado!")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.success("""
-            **✅ Migración Exitosa:**
-            - 30+ secciones convertidas a arquitectura modular
-            - Sistema de filtros globales implementado
-            - Código reutilizable y mantenible
-            - Performance optimizada con caching
-            """)
-        with col2:
-            st.info("""
-            **📈 Beneficios Obtenidos:**
-            - 90% menos código duplicado
-            - 95% más rápido agregar nuevas funciones
-            - 50% mejora en tiempo de carga
-            - 100% de funcionalidad preservada
-            """)
-        
-        # Estadísticas finales
-        st.markdown("### 📊 Estadísticas del Sistema")
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.metric("Secciones Migradas", "30+", "✅ Completo")
-        with col2:
-            st.metric("Filtros Globales", "3", "Fecha, Lugar, Fuente")
-        with col3:
-            st.metric("Reducción Código", "90%", "Menos duplicación")
-        with col4:
-            st.metric("Performance", "+50%", "Más rápido")
+
     
     def run_users_dashboard(self):
         """Ejecutar dashboard de usuarios"""
@@ -290,13 +241,7 @@ class DashboardApp:
             ["🍸 Análisis de Cocteles", "👥 Usuarios y Acontecimientos"],
             key="main_menu"
         )
-        
-        # Información sobre el estado del sistema
-        if menu == "🍸 Análisis de Cocteles":
-            st.sidebar.success("✅ Sistema completamente migrado")
-        else:
-            st.sidebar.info("ℹ️ Funcionalidad original preservada")
-        
+                
         # Ejecutar sección seleccionada
         if menu == "🍸 Análisis de Cocteles":
             self.run_coctel_dashboard()
@@ -317,7 +262,6 @@ if __name__ == "__main__":
     
     # Mostrar información de inicio en consola
     print("🚀 Iniciando Dashboard SIMA - Versión Modular")
-    print("📊 30+ secciones migradas y operativas")
     print("🔐 Sistema de autenticación habilitado")
     print("🗓️ Filtros globales configurados")
     print("⚡ Performance optimizada")
