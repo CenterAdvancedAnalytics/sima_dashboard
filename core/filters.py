@@ -27,9 +27,13 @@ class FilterManager:
         use_global_dates = st.sidebar.checkbox("Usar fechas globales", value=True)
         
         if use_global_dates:
-            default_start = self.max_date - timedelta(days=90) if self.max_date else datetime.now().date() - timedelta(days=90)
-            default_end = self.max_date if self.max_date else datetime.now().date()
-            
+            today = datetime.now().date()
+
+            # limitar default al rango real
+            default_start = today if self.min_date <= today <= self.max_date else self.min_date
+            default_end = today if self.min_date <= today <= self.max_date else self.max_date
+
+
             global_fecha_inicio = st.sidebar.date_input(
                 "Fecha Inicio Global",
                 value=default_start,
@@ -75,6 +79,7 @@ class FilterManager:
         self._display_filter_info(filters)
         
         return filters
+
         
     def _display_filter_info(self, filters: Dict[str, Any]):
         """Mostrar información de los filtros aplicados"""

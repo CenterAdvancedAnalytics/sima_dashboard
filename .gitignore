@@ -11,3 +11,5 @@ test.ipynb
 .streamlit/secrets.toml
 .streamlit/secrets.toml
 *.csv
+config/admin.json
+config/users.json

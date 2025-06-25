@@ -156,11 +156,12 @@ class DashboardApp:
         filter_manager = FilterManager(lugares_uniques)
         
         # Establecer límites de fechas basados en los datos
-        temp_coctel_fuente = data_tuple[2]  # temp_coctel_fuente está en la posición 2
-        min_date = temp_coctel_fuente['fecha_registro'].min()
-        max_date = temp_coctel_fuente['fecha_registro'].max()
+        temp_coctel_fuente = data_tuple[2]
+        min_date = temp_coctel_fuente['fecha_registro'].min().date()
+        max_date = temp_coctel_fuente['fecha_registro'].max().date()
         filter_manager.set_date_bounds(min_date, max_date)
-        
+
+                
         # Crear filtros globales
         global_filters = filter_manager.create_global_filters()
         if global_filters is None:
@@ -260,11 +261,6 @@ if __name__ == "__main__":
     except ImportError:
         pass  # Si no está disponible python-dotenv, continuar sin cargar .env
     
-    # Mostrar información de inicio en consola
-    print("🚀 Iniciando Dashboard SIMA - Versión Modular")
-    print("🔐 Sistema de autenticación habilitado")
-    print("🗓️ Filtros globales configurados")
-    print("⚡ Performance optimizada")
     print("=" * 50)
     
     # Ejecutar aplicación
