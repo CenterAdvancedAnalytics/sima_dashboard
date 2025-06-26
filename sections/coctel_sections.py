@@ -208,7 +208,7 @@ class CoctelSections:
         
         fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s8", global_filters)
         
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             # Local location selector - independent of global filters
             available_locations = self.temp_coctel_fuente['lugar'].dropna().unique()
@@ -218,6 +218,8 @@ class CoctelSections:
                 key="lugar_s8"
             )
         with col2:
+            option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s8")
+        with col3:
             option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s8")
         
         temp_data = self.temp_coctel_fuente[
@@ -227,10 +229,12 @@ class CoctelSections:
         ]
         
         if not temp_data.empty:
-            conteo_data = self.analytics.calculate_position_count(temp_data, "Todos", option_nota)
+            conteo_data = self.analytics.calculate_position_count(temp_data, option_fuente, option_nota)
             
             if not conteo_data.empty:
                 titulo = f'Conteo de posiciones {option_nota.lower()} en {option_lugar} por tipo de medio'
+                if option_fuente != "Todos":
+                    titulo = f'Conteo de posiciones {option_nota.lower()} en {option_lugar} - {option_fuente}'
                 
                 fig = px.bar(
                     conteo_data,

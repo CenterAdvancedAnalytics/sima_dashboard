@@ -11,7 +11,7 @@ COPY . .
 
 EXPOSE 8080
 
-CMD ["streamlit", "run", "app/sima_app.py", \
+CMD ["streamlit", "run", "main_app.py", \
      "--server.port=8080", \
      "--server.address=0.0.0.0", \
      "--logger.level=debug"]

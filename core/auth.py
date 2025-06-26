@@ -39,13 +39,23 @@ class AuthManager:
             return hashlib.sha256(password.encode()).hexdigest() == hash_str
     
     def _load_users(self) -> Dict:
-        """Cargar usuarios desde archivo JSON"""
+        """Cargar usuarios desde archivo JSON o variables de entorno"""
+        # Intentar cargar desde archivo primero
         if os.path.exists(self.config_file):
             try:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
             except (json.JSONDecodeError, FileNotFoundError):
-                return {}
+                pass
+        
+        # Si no existe archivo, cargar desde variables de entorno
+        users_json = os.getenv('USERS_CONFIG')
+        if users_json:
+            try:
+                return json.loads(users_json)
+            except json.JSONDecodeError:
+                st.error("Error: USERS_CONFIG mal formateado")
+        
         return {}
     
     def _save_users(self):
@@ -57,20 +67,34 @@ class AuthManager:
             st.error(f"Error guardando datos de usuario: {e}")
     
     def _create_default_admin(self):
-        """Crear usuario admin por defecto si no hay usuarios"""
+        """Crear usuario admin por defecto"""
         if not self.users:
-            # Solo crear admin por defecto en desarrollo
-            # En producción, usar setup_initial_admin()
-            default_password = "admin123"  # CAMBIAR EN PRODUCCIÓN
-            self.users["admin"] = {
-                "password_hash": self._hash_password(default_password),
-                "role": "admin",
-                "name": "Administrador",
-                "created_at": datetime.now().isoformat(),
-                "is_default": True
-            }
-            self._save_users()
-            st.warning(f"⚠️ Usuario admin creado con contraseña por defecto. CÁMBIALA INMEDIATAMENTE.")
+            # En producción, usar variables de entorno
+            admin_password = os.getenv('ADMIN_PASSWORD')
+            admin_name = os.getenv('ADMIN_NAME', 'Administrator')
+            
+            if admin_password:
+                # Configuración desde variables de entorno
+                self.users["admin"] = {
+                    "password_hash": self._hash_password(admin_password),
+                    "role": "admin",
+                    "name": admin_name,
+                    "created_at": datetime.now().isoformat()
+                }
+                self._save_users()
+                st.success("✅ Admin configurado desde variables de entorno")
+            else:
+                # Fallback para desarrollo local
+                default_password = "admin123"
+                self.users["admin"] = {
+                    "password_hash": self._hash_password(default_password),
+                    "role": "admin",
+                    "name": "Administrador",
+                    "created_at": datetime.now().isoformat(),
+                    "is_default": True
+                }
+                self._save_users()
+                st.warning("⚠️ Usuario admin creado con contraseña por defecto.")
     
     def setup_initial_admin(self):
         """Configurar el primer administrador de forma segura"""
@@ -212,7 +236,6 @@ class AuthManager:
         
         return True
     
-    
     def change_password(self, username: str, old_password: str, new_password: str) -> bool:
         """Cambiar contraseña (usuario debe conocer la contraseña actual)"""
         if not self.authenticate(username, old_password):
@@ -312,9 +335,6 @@ class AuthManager:
                 user = self.authenticate(username, password)
                 if user:
                     st.session_state["user"] = user
-                    # Verificar si necesita cambiar contraseña por defecto
-                    if self.users[username].get("is_default", False):
-                        st.session_state["force_password_change"] = True
                     st.success(f"¡Bienvenido, {user['name']}!")
                     st.rerun()
                 else:
@@ -332,10 +352,7 @@ class AuthManager:
         st.sidebar.markdown(f"**{user['name']}**")
         st.sidebar.markdown(f"*Rol: {user['role']}*")
         
-        # Botones de gestión
-        if st.sidebar.button("Cambiar Contraseña"):
-            st.session_state["show_password_change"] = True
-        
+        # Solo mostrar panel de administración para admins
         if user["role"] == "admin":
             if st.sidebar.button("Panel de Administración"):
                 st.session_state["show_admin_panel"] = True
@@ -343,53 +360,6 @@ class AuthManager:
         if st.sidebar.button("Cerrar Sesión"):
             self.logout()
             st.rerun()
-    
-    def render_password_change_modal(self):
-        """Renderizar modal de cambio de contraseña"""
-        if not st.session_state.get("show_password_change", False):
-            return
-        
-        user = self.get_current_user()
-        force_change = st.session_state.get("force_password_change", False)
-        
-        if force_change:
-            st.error("⚠️ Debes cambiar tu contraseña por defecto antes de continuar.")
-        
-        st.markdown("### Cambiar Contraseña")
-        with st.form("change_password_form"):
-            current_password = st.text_input("Contraseña Actual", type="password")
-            new_password = st.text_input("Nueva Contraseña", type="password")
-            confirm_password = st.text_input("Confirmar Nueva Contraseña", type="password")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                change_btn = st.form_submit_button("Cambiar")
-            with col2:
-                if not force_change:  # No permitir cancelar si es obligatorio
-                    cancel_btn = st.form_submit_button("Cancelar")
-                else:
-                    cancel_btn = False
-            
-            if cancel_btn and not force_change:
-                st.session_state["show_password_change"] = False
-                st.rerun()
-            
-            if change_btn:
-                if new_password != confirm_password:
-                    st.error("Las contraseñas no coinciden")
-                elif len(new_password) < 8:
-                    st.error("La contraseña debe tener al menos 8 caracteres")
-                elif self.change_password(user["username"], current_password, new_password):
-                    st.success("Contraseña cambiada exitosamente")
-                    st.session_state["show_password_change"] = False
-                    if force_change:
-                        st.session_state["force_password_change"] = False
-                    st.rerun()
-                else:
-                    st.error("Contraseña actual incorrecta")
-        
-        if force_change:
-            st.stop()  # No permitir continuar hasta cambiar contraseña
     
     def render_admin_panel(self):
         """Renderizar panel de administración"""
