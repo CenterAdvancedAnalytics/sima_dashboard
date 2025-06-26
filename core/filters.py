@@ -27,23 +27,21 @@ class FilterManager:
         use_global_dates = st.sidebar.checkbox("Usar fechas globales", value=True)
         
         if use_global_dates:
-            today = datetime.now().date()
-
-            # limitar default al rango real
-            default_start = today if self.min_date <= today <= self.max_date else self.min_date
-            default_end = today if self.min_date <= today <= self.max_date else self.max_date
-
+            # Both dates default to the LAST day (max_date)
+            # Users can select any range, but by default they see only the most recent day
+            default_start = self.max_date if self.max_date else datetime.now().date()
+            default_end = self.max_date if self.max_date else datetime.now().date()
 
             global_fecha_inicio = st.sidebar.date_input(
                 "Fecha Inicio Global",
-                value=default_start,
+                value=default_start,  # Defaults to LAST day
                 min_value=self.min_date,
                 max_value=self.max_date,
                 format="DD.MM.YYYY"
             )
             global_fecha_fin = st.sidebar.date_input(
                 "Fecha Fin Global", 
-                value=default_end,
+                value=default_end,  # Also defaults to LAST day
                 min_value=self.min_date,
                 max_value=self.max_date,
                 format="DD.MM.YYYY"
