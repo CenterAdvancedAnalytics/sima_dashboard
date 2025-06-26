@@ -1,6 +1,15 @@
-# main_app.py (Versión completa con todas las secciones)
+# main_app.py (Fixed version with proper page config placement)
 
 import streamlit as st
+
+# IMPORTANT: Set page config FIRST, before any other streamlit commands or imports that might use streamlit
+st.set_page_config(
+    page_title="Dashboard SIMA",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    page_icon="📊"
+)
+
 import pandas as pd
 from datetime import datetime, timedelta
 import sys
@@ -20,15 +29,6 @@ class DashboardApp:
         self.auth_manager = AuthManager()
         self.data_loader = DataLoader()
         
-    def setup_page_config(self):
-        """Configurar página de Streamlit"""
-        st.set_page_config(
-            page_title="Dashboard SIMA",
-            layout="wide",
-            initial_sidebar_state="expanded",
-            page_icon="📊"
-        )
-    
     def show_header(self):
         """Mostrar header de la aplicación"""
         col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
@@ -222,7 +222,7 @@ class DashboardApp:
     
     def run(self):
         """Ejecutar aplicación principal"""
-        self.setup_page_config()
+        # Note: page config is now set at the top of the file
         
         # Verificar autenticación
         if not self.auth_manager.is_logged_in():
