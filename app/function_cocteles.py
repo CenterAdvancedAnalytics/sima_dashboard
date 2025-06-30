@@ -134,6 +134,7 @@ def coctel_dashboard():
         temp_c1_redes = proporcion_cocteles(temp_c1_redes)
         st.write(f"Proporción de cocteles en {option_lugar_c1} entre {fecha_inicio_c1.strftime('%d.%m.%Y')} y {fecha_fin_c1.strftime('%d.%m.%Y')}")
 
+        st.dataframe(temp_c1)
         col1, col2, col3 = st.columns(3)
         with col1:
             st.write("Radio")
@@ -2249,7 +2250,7 @@ def coctel_dashboard():
         )
         st.write("Impactos con cóctel por programa")
         st.dataframe(resumen_coctel.rename(columns={prog_col_g32: "Programa"}), hide_index=True)
-
+        st.dataframe(temp_g32)
         # 2) Total de impactos
         resumen_total = (
             temp_g32
@@ -2259,6 +2260,7 @@ def coctel_dashboard():
         )
         st.write("Total de impactos por programa")
         st.dataframe(resumen_total.rename(columns={prog_col_g32: "Programa"}), hide_index=True)
+        st.dataframe(temp_g32)
     else:
         st.warning("No hay datos para la selección actual.")
 

@@ -460,8 +460,9 @@ class AnalyticsEngine:
     # =====================================================
 
     @staticmethod
-    def calculate_favor_contra_notes(data: pd.DataFrame, coctel_type: str) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def calculate_favor_contra_notes(data: pd.DataFrame, coctel_type: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """Calcular porcentaje de notas a favor vs en contra (Sección 14)"""
+
         if coctel_type == "Con coctel":
             data = data[data['coctel'] == 1]
         elif coctel_type == "Sin coctel":
@@ -470,7 +471,7 @@ class AnalyticsEngine:
         data = data.dropna()
         data["mes"] = data['fecha_registro'].dt.month
         data["año"] = data['fecha_registro'].dt.year
-        data["año_mes"] = data["año"].astype(str) + "-" + data["mes"].astype(str)
+        data["año_mes"] = data["año"].astype(str) + "-" + data["mes"].astype(str).str.zfill(2)
 
         data["a_favor"] = 0
         data["en_contra"] = 0
@@ -480,14 +481,14 @@ class AnalyticsEngine:
         data.loc[data['id_posicion'].isin([4, 5]), "en_contra"] = 1
         data.loc[data['id_posicion'] == 3, "neutral"] = 1
 
-        conteo_notas = (
+        conteo_abs = (
             data
             .groupby('año_mes')
             .agg({'a_favor': 'sum', 'en_contra': 'sum', 'neutral': 'sum'})
             .reset_index()
         )
 
-        conteo_pct = conteo_notas.copy()
+        conteo_pct = conteo_abs.copy()
         conteo_pct["total"] = (
             conteo_pct["a_favor"] + conteo_pct["en_contra"] + conteo_pct["neutral"]
         )
@@ -504,7 +505,8 @@ class AnalyticsEngine:
             value_name="Porcentaje"
         )
 
-        return conteo_pct, long_df
+        return conteo_pct, long_df, conteo_abs
+
 
     @staticmethod
     def calculate_message_proportion_by_position(data: pd.DataFrame, source: str, coctel_type: str) -> pd.DataFrame:
@@ -838,7 +840,7 @@ class AnalyticsEngine:
         try:
             # 1) Impactos con cóctel
             result_coctel = (
-                temp_data
+                temp_data.drop_duplicates()
                 .groupby(prog_cols, as_index=False)
                 .agg(**{"Impactos con cóctel": ("coctel", "sum")})
                 .sort_values(prog_cols)
@@ -846,7 +848,7 @@ class AnalyticsEngine:
             
             # 2) Total de impactos
             result_total = (
-                temp_data
+                temp_data.drop_duplicates()
                 .groupby(prog_cols, as_index=False)
                 .agg(**{"Total de impactos": ("id", "count")})
                 .sort_values(prog_cols)

@@ -499,21 +499,45 @@ class CoctelSections:
     def section_14_notas_favor_contra(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """14.- Porcentaje de notas que sean a favor, neutral y en contra"""
         st.subheader("14.- Porcentaje de notas que sean a favor, neutral y en contra")
-        
+
         fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s14", global_filters)
-        
+
         option_nota = st.selectbox("Notas", ("Con coctel", "Sin coctel", "Todos"), key="nota_s14")
-        option_lugares = self.filter_manager.get_section_locations("s14", global_filters, multi=True)
-        
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            # filtro de lugar con opción "Todas las regiones"
+            available_locations = sorted(self.temp_coctel_fuente['lugar'].dropna().unique())
+            location_options = ["Todas las regiones"] + available_locations
+            option_lugar = st.selectbox("Lugar", options=location_options, key="lugar_s14")
+
+        with col2:
+            # filtro de fuente con labels amigables
+            fuente_display_to_real = {
+                "Radio": "RADIO",
+                "TV": "TV",
+                "Redes": "REDES"
+            }
+
+            option_fuente_display = st.multiselect(
+                "Fuente", ["Radio", "TV", "Redes"],
+                ["Radio", "TV", "Redes"], key="fuente_s14"
+            )
+
+            option_fuente = [fuente_display_to_real[f] for f in option_fuente_display]
+
+        # aplicar filtros
         temp_data = self.temp_coctel_fuente[
             (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
             (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente['lugar'].isin(option_lugares))
+            ((self.temp_coctel_fuente['lugar'] == option_lugar) if option_lugar != "Todas las regiones" else True) &
+            (self.temp_coctel_fuente['fuente_nombre'].isin(option_fuente))
         ]
-        
+
         if not temp_data.empty:
-            conteo_pct, long_df = self.analytics.calculate_favor_contra_notes(temp_data, option_nota)
-            
+            conteo_pct, long_df, conteo_abs = self.analytics.calculate_favor_contra_notes(temp_data, option_nota)
+
             if not conteo_pct.empty:
                 if option_nota == "Con coctel":
                     titulo = "Porcentaje de notas que sean a favor, neutral y en contra con coctel"
@@ -521,20 +545,40 @@ class CoctelSections:
                     titulo = "Porcentaje de notas que sean a favor, neutral y en contra sin coctel"
                 else:
                     titulo = "Porcentaje de notas que sean a favor, neutral y en contra"
-                
-                st.write(f"Análisis entre {fecha_inicio.strftime('%d-%m-%Y')} y {fecha_fin.strftime('%d-%m-%Y')}")
-                
-                # Mostrar tabla
+
+                # encabezado de análisis
+                lugar_texto = "todas las regiones" if option_lugar == "Todas las regiones" else option_lugar
+                st.write(f"Análisis en **{lugar_texto}** entre {fecha_inicio.strftime('%d-%m-%Y')} y {fecha_fin.strftime('%d-%m-%Y')}")
+
+                # preparar data para tablas
                 conteo_pct["A favor (%)"] = conteo_pct["a_favor_pct"].map("{:.1f}".format)
                 conteo_pct["En contra (%)"] = conteo_pct["en_contra_pct"].map("{:.1f}".format)
                 conteo_pct["Neutral (%)"] = conteo_pct["neutral_pct"].map("{:.1f}".format)
-                
-                st.dataframe(
-                    conteo_pct[["año_mes", "A favor (%)", "Neutral (%)", "En contra (%)"]],
-                    hide_index=True
-                )
-                
-                # Mostrar gráfico
+
+                conteo_abs = conteo_abs.rename(columns={
+                    "a_favor": "A favor",
+                    "en_contra": "En contra",
+                    "neutral": "Neutral"
+                })
+
+                # mostrar tablas lado a lado
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.write("Porcentajes por tipo de nota")
+                    st.dataframe(
+                        conteo_pct[["año_mes", "A favor (%)", "Neutral (%)", "En contra (%)"]],
+                        hide_index=True
+                    )
+
+                with col2:
+                    st.write("Conteo absoluto de notas")
+                    st.dataframe(
+                        conteo_abs[["año_mes", "A favor", "Neutral", "En contra"]],
+                        hide_index=True
+                    )
+
+                # gráfico
                 fig = px.bar(
                     long_df,
                     x="año_mes",
@@ -550,16 +594,17 @@ class CoctelSections:
                         "neutral_pct": "gray",
                     },
                 )
-                
+
                 fig.update_layout(barmode='stack', xaxis={'categoryorder': 'category ascending'})
                 fig.for_each_trace(lambda t: t.update(name=t.name.replace('_pct', ' (%)')))
-                
+
                 st.plotly_chart(fig, use_container_width=True)
             else:
                 st.warning("No hay datos para mostrar")
         else:
             st.warning("No hay datos para mostrar")
-    
+
+
     def section_15_proporcion_mensajes(self, global_filters: Dict[str, Any]):
         """15.- Proporción de Mensajes Emitidos por Fuente y Tipo de Nota"""
         st.subheader("15.- Proporción de Mensajes Emitidos por Fuente y Tipo de Nota en un Lugar y Fecha Específica")
