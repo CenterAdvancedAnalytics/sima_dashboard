@@ -1,4 +1,3 @@
-#coctel_queries.py
 from sqlalchemy.sql import text
 
 queries = {
@@ -57,19 +56,15 @@ queries = {
         LEFT JOIN
             notas n ON a.id_nota = n.id
         LEFT JOIN
-            mensaje_fuerza mf ON n.id = mf.id
-        WHERE
-            a.fecha_registro >= NOW() - INTERVAL '1 year';
+            mensaje_fuerza mf ON n.id = mf.id;
         """)
     },
     "ultima_fecha": {
         "read": text("""
-            SELECT
-                MAX(a.fecha_registro) AS ultima_fecha
-            FROM
-                acontecimientos a
-            WHERE
-                a.fecha_registro >= NOW() - INTERVAL '2 years';
+        SELECT
+            MAX(a.fecha_registro) AS ultima_fecha
+        FROM
+            acontecimientos a;
         """)
     }
 }
