@@ -1,4 +1,4 @@
-# main_app.py
+# main_app.py (Fixed version with proper page config placement)
 
 import streamlit as st
 
@@ -151,24 +151,15 @@ class DashboardApp:
         with st.spinner("Cargando datos de cocteles..."):
             data_tuple = self.data_loader.load_coctel_data()
             
-        temp_coctel_fuente = data_tuple[2]
-        
         # Configurar filtros
-        lugares_uniques = data_tuple[7]
+        lugares_uniques = data_tuple[7]  # lugares_uniques está en la posición 7
         filter_manager = FilterManager(lugares_uniques)
         
         # Establecer límites de fechas basados en los datos
+        temp_coctel_fuente = data_tuple[2]
         min_date = temp_coctel_fuente['fecha_registro'].min().date()
         max_date = temp_coctel_fuente['fecha_registro'].max().date()
-        
-        st.write(f"min_date calculated: {min_date}")
-        st.write(f"max_date calculated: {max_date}")
-        
         filter_manager.set_date_bounds(min_date, max_date)
-        
-        st.write(f"Filter manager min_date after set_date_bounds: {filter_manager.min_date}")
-        st.write(f"Filter manager max_date after set_date_bounds: {filter_manager.max_date}")
-        st.write("==================")
 
                 
         # Crear filtros globales
