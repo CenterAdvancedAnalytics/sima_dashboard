@@ -18,21 +18,66 @@ class AnalyticsEngine:
     
     @staticmethod
     def calculate_coctel_proportion(data: pd.DataFrame) -> Dict[str, pd.DataFrame]:
-        """Calcular proporción de cocteles por fuente (Sección SN)"""
+        """Calcular proporción de cocteles por fuente (Sección SN) - using S25 logic"""
         result = {}
-        data["Fuente"] = data["id_fuente"].map(ID_FUENTE_DICT)
+        
+        # Apply S25 logic: dedup first like S25 does
+        data_deduped = data.drop_duplicates()
+        
+        print("=== SN DEBUG ===")
+        print(f"total combined data rows: {len(data)}")
+        print(f"after dedup: {len(data_deduped)}")
+        print(f"unique id_fuente values: {sorted(data_deduped['id_fuente'].unique())}")
+        print(f"total coctel=1 in deduped data: {data_deduped['coctel'].sum()}")
+        
+        print("ID_FUENTE_DICT mapping:")
+        for k, v in ID_FUENTE_DICT.items():
+            print(f"  {k} -> {v}")
+        
+        print("breakdown by id_fuente:")
+        for fuente_id, fuente_name in ID_FUENTE_DICT.items():
+            temp_data_subset = data_deduped[data_deduped['id_fuente'] == fuente_id]
+            if not temp_data_subset.empty:
+                coctel_ones = len(temp_data_subset[temp_data_subset['coctel'] == 1])
+                coctel_zeros = len(temp_data_subset[temp_data_subset['coctel'] == 0])
+                print(f"  {fuente_name} (id={fuente_id}): {len(temp_data_subset)} total, {coctel_ones} coctel=1, {coctel_zeros} coctel=0")
+            else:
+                print(f"  {fuente_name} (id={fuente_id}): no data")
+        
+        print("=== END SN DEBUG ===\n")
+        
+        data_deduped["Fuente"] = data_deduped["id_fuente"].map(ID_FUENTE_DICT)
         
         for fuente_id, fuente_name in ID_FUENTE_DICT.items():
-            temp_data = data[data['id_fuente'] == fuente_id]
+            temp_data = data_deduped[data_deduped['id_fuente'] == fuente_id]
             if not temp_data.empty:
-                grouped = temp_data.groupby('coctel').agg({'id': 'count'}).reset_index()
-                grouped = grouped.rename(columns={'coctel': 'Fuente', 'id': 'Cantidad'})
-                grouped['Proporción'] = grouped['Cantidad'] / grouped['Cantidad'].sum()
-                grouped['Proporción'] = grouped['Proporción'].map('{:.0%}'.format)
-                grouped['Fuente'] = grouped['Fuente'].replace({0: 'Otras Fuentes', 1: 'Coctel Noticias'})
-                result[fuente_name] = grouped
+                # Use S25 logic: sum coctel values and count total records after dedup
+                coctel_count = temp_data['coctel'].sum()  # matches S25's ("coctel", "sum")
+                total_count = len(temp_data)  # matches S25's ("id", "count") after dedup
+                otras_count = total_count - coctel_count
+                
+                # Create the SN format result
+                result_data = []
+                if otras_count > 0:
+                    otras_prop = (otras_count / total_count * 100) if total_count > 0 else 0
+                    result_data.append({
+                        'Fuente': 'Otras Fuentes',
+                        'Cantidad': otras_count,
+                        'Proporción': f"{otras_prop:.0f}%"
+                    })
+                
+                if coctel_count > 0:
+                    coctel_prop = (coctel_count / total_count * 100) if total_count > 0 else 0
+                    result_data.append({
+                        'Fuente': 'Coctel Noticias', 
+                        'Cantidad': coctel_count,
+                        'Proporción': f"{coctel_prop:.0f}%"
+                    })
+                
+                result[fuente_name] = pd.DataFrame(result_data)
             else:
                 result[fuente_name] = pd.DataFrame()
+        
         return result
 
     @staticmethod
@@ -838,17 +883,17 @@ class AnalyticsEngine:
             prog_cols = ["nombre_facebook_page"]
         
         try:
-            # 1) Impactos con cóctel
+            # 1) Impactos con cóctel - NO drop_duplicates for coctel count to match SN logic
             result_coctel = (
-                temp_data.drop_duplicates()
+                temp_data[temp_data['coctel'] == 1]  # filter to coctel=1 first
                 .groupby(prog_cols, as_index=False)
-                .agg(**{"Impactos con cóctel": ("coctel", "sum")})
+                .agg(**{"Impactos con cóctel": ("id", "count")})  # count records, not sum coctel
                 .sort_values(prog_cols)
             )
             
-            # 2) Total de impactos
+            # 2) Total de impactos - keep drop_duplicates for total count
             result_total = (
-                temp_data.drop_duplicates()
+                temp_data  # no more .drop_duplicates()
                 .groupby(prog_cols, as_index=False)
                 .agg(**{"Total de impactos": ("id", "count")})
                 .sort_values(prog_cols)

@@ -158,45 +158,114 @@ class CoctelSections:
     def section_sn_proporcion_basica(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """SN.- Proporción de cocteles en lugar y fecha específica"""
         st.subheader("SN.- Proporción de cocteles en lugar y fecha específica")
-        
+
         fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("sn", global_filters)
-        
+
         if not global_filters.get('use_global_locations'):
             option_lugar = st.selectbox("Lugar", self.lugares_uniques, key="lugar_sn")
         else:
             option_lugar = st.selectbox("Lugar", global_filters['global_lugares'], key="lugar_sn")
-        
-        # Filtrar datos
+
+        # Use same data source logic as S25
+        # For Radio/TV: use combined data (keep current working logic)
         temp_data = self.temp_coctel_fuente[
             (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
             (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
             (self.temp_coctel_fuente['lugar'] == option_lugar)
         ]
-        
-        if not temp_data.empty:
-            result = self.analytics.calculate_coctel_proportion(temp_data)
+
+        fb_data = self.temp_coctel_fuente_fb[
+            (self.temp_coctel_fuente_fb['fecha_registro'] >= fecha_inicio) &
+            (self.temp_coctel_fuente_fb['fecha_registro'] <= fecha_fin) &
+            (self.temp_coctel_fuente_fb['lugar'] == option_lugar)
+        ]
+
+        # Combine data for Radio/TV (keep existing logic)
+        if not fb_data.empty:
+            common_cols = list(set(temp_data.columns) & set(fb_data.columns))
+            if common_cols:
+                combined_data = pd.concat([temp_data[common_cols], fb_data[common_cols]], ignore_index=True)
+            else:
+                combined_data = temp_data.copy()
+                st.warning("⚠️ no common columns between data sources, using main source only")
+        else:
+            combined_data = temp_data.copy()
+
+        if not combined_data.empty or not fb_data.empty:
+            # Calculate results for Radio/TV using combined data
+            result_radio_tv = self.analytics.calculate_coctel_proportion(combined_data) if not combined_data.empty else {}
             
+            # For Redes, use S25 logic to get disaggregated data
+            redes_temp_data = self.temp_coctel_fuente_fb[
+                (self.temp_coctel_fuente_fb["fecha_registro"] >= fecha_inicio) &
+                (self.temp_coctel_fuente_fb["fecha_registro"] <= fecha_fin) &
+                (self.temp_coctel_fuente_fb["lugar"] == option_lugar)
+            ]
+            
+            # Filter and dedupe like S25
+            redes_temp_data = redes_temp_data[['id', 'fecha_registro', 'lugar', 'coctel', 'nombre_facebook_page']].drop_duplicates()
+            redes_temp_data = redes_temp_data[
+                redes_temp_data['nombre_facebook_page'].notna() &
+                (redes_temp_data['nombre_facebook_page'] != '')
+            ]
+            
+            # Get S25-style results
+            if not redes_temp_data.empty:
+                result_coctel_s25, result_total_s25 = self.analytics.calculate_program_impacts_complete(redes_temp_data, "Redes")
+                
+                # Sum the totals from S25 results
+                coctel_total = 0
+                total_total = 0
+                
+                if not result_coctel_s25.empty:
+                    numeric_cols_coctel = result_coctel_s25.select_dtypes(include=['number']).columns
+                    if len(numeric_cols_coctel) > 0:
+                        coctel_total = result_coctel_s25[numeric_cols_coctel].sum().sum()
+                
+                if not result_total_s25.empty:
+                    numeric_cols_total = result_total_s25.select_dtypes(include=['number']).columns
+                    if len(numeric_cols_total) > 0:
+                        total_total = result_total_s25[numeric_cols_total].sum().sum()
+                
+                # Calculate otras fuentes
+                otras_fuentes = total_total - coctel_total
+                
+                # Create proportion dataframe
+                if total_total > 0:
+                    coctel_prop = (coctel_total / total_total) * 100
+                    otras_prop = (otras_fuentes / total_total) * 100
+                    
+                    redes_proportion_df = pd.DataFrame({
+                        'Fuente': ['Coctel noticias', 'Otras fuentes'],
+                        'Total': [coctel_total, otras_fuentes],
+                        'Proporción (%)': [f"{coctel_prop:.1f}%", f"{otras_prop:.1f}%"]
+                    })
+                else:
+                    redes_proportion_df = pd.DataFrame()
+            else:
+                redes_proportion_df = pd.DataFrame()
+
             st.write(f"Proporción de cocteles en {option_lugar} entre {fecha_inicio.strftime('%d.%m.%Y')} y {fecha_fin.strftime('%d.%m.%Y')}")
-            
+
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.write("**Radio**")
-                if "Radio" in result and not result["Radio"].empty:
-                    st.dataframe(result["Radio"], hide_index=True)
+                st.write("Radio")
+                if "Radio" in result_radio_tv and not result_radio_tv["Radio"].empty:
+                    st.dataframe(result_radio_tv["Radio"], hide_index=True)
                 else:
                     st.write("Sin datos")
-                    
+
             with col2:
-                st.write("**TV**")
-                if "TV" in result and not result["TV"].empty:
-                    st.dataframe(result["TV"], hide_index=True)
+                st.write("TV")
+                if "TV" in result_radio_tv and not result_radio_tv["TV"].empty:
+                    st.dataframe(result_radio_tv["TV"], hide_index=True)
                 else:
                     st.write("Sin datos")
-                    
+
             with col3:
-                st.write("**Redes**")
-                if "Redes" in result and not result["Redes"].empty:
-                    st.dataframe(result["Redes"], hide_index=True)
+                st.write("Redes")
+                if not redes_proportion_df.empty:
+                    st.dataframe(redes_proportion_df, hide_index=True)
                 else:
                     st.write("Sin datos")
         else:
@@ -1216,17 +1285,11 @@ class CoctelSections:
         with col1:
             medio = st.selectbox("Medio", ("Radio", "TV", "Redes"), key="medio_s32")
         with col2:
-            # Local location selector - independent of global filters
-            # Get available locations from both dataframes
             available_locations_programas = self.temp_coctel_fuente_programas['lugar'].dropna().unique()
             available_locations_fb = self.temp_coctel_fuente_fb['lugar'].dropna().unique()
             all_locations = sorted(set(list(available_locations_programas) + list(available_locations_fb)))
             
-            region = st.selectbox(
-                "Lugar", 
-                options=all_locations, 
-                key="lugar_s32"
-            )
+            region = st.selectbox("Lugar", options=all_locations, key="lugar_s32")
         
         if medio in ("Radio", "TV"):
             temp_data = self.temp_coctel_fuente_programas[
@@ -1235,35 +1298,66 @@ class CoctelSections:
                 (self.temp_coctel_fuente_programas["lugar"] == region)
             ]
         else:
-            temp_data = self.temp_coctel_fuente_fb[
-                (self.temp_coctel_fuente_fb["fecha_registro"] >= fecha_inicio) &
-                (self.temp_coctel_fuente_fb["fecha_registro"] <= fecha_fin) &
-                (self.temp_coctel_fuente_fb["lugar"] == region)
+            fb_data_minimal = self.temp_coctel_fuente_fb[['id', 'fecha_registro', 'lugar', 'coctel', 'nombre_facebook_page']]
+            
+            temp_data = fb_data_minimal[
+                (fb_data_minimal["fecha_registro"] >= fecha_inicio) &
+                (fb_data_minimal["fecha_registro"] <= fecha_fin) &
+                (fb_data_minimal["lugar"] == region)
+            ].drop_duplicates()
+            
+            temp_data = temp_data[
+                temp_data['nombre_facebook_page'].notna() &
+                (temp_data['nombre_facebook_page'] != '')
             ]
         
         if not temp_data.empty:
-            # Obtener ambos resultados: impactos con cóctel y total de impactos
             result_coctel, result_total = self.analytics.calculate_program_impacts_complete(temp_data, medio)
             
-            # Definir mapeo de columnas para mejor presentación
+            # column mapping for display
             if medio in ("Radio", "TV"):
                 column_mapping = {"nombre_canal": "Canal", "programa_nombre": "Programa"}
             else:
                 column_mapping = {"nombre_facebook_page": "Página Facebook"}
-            
-            # Mostrar impactos con cóctel
+                
             if not result_coctel.empty:
                 st.write("**Impactos con cóctel por programa**")
                 st.dataframe(result_coctel.rename(columns=column_mapping), hide_index=True)
+                
+                # show totals
+                numeric_cols = result_coctel.select_dtypes(include=['number']).columns
+                if len(numeric_cols) > 0:
+                    total_data = {}
+                    for col in result_coctel.columns:
+                        if col in numeric_cols:
+                            total_data[col] = [result_coctel[col].sum()]
+                        else:
+                            total_data[col] = ["TOTAL"]
+                    
+                    total_df_coctel = pd.DataFrame(total_data)
+                    st.dataframe(total_df_coctel.rename(columns=column_mapping), hide_index=True)
             else:
                 st.warning("No hay impactos con cóctel para la selección actual.")
             
-            st.write("")  # Espacio entre tablas
+            st.write("")
             
-            # Mostrar total de impactos
+            # show total impacts
             if not result_total.empty:
                 st.write("**Total de impactos por programa**")
                 st.dataframe(result_total.rename(columns=column_mapping), hide_index=True)
+                
+                # show totals
+                numeric_cols = result_total.select_dtypes(include=['number']).columns
+                if len(numeric_cols) > 0:
+                    total_data = {}
+                    for col in result_total.columns:
+                        if col in numeric_cols:
+                            total_data[col] = [result_total[col].sum()]
+                        else:
+                            total_data[col] = ["TOTAL"]
+                    
+                    total_df_total = pd.DataFrame(total_data)
+                    st.dataframe(total_df_total.rename(columns=column_mapping), hide_index=True)
             else:
                 st.warning("No hay datos para la selección actual.")
         else:
