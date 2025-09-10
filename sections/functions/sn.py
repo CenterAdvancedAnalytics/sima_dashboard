@@ -188,8 +188,8 @@ def data_section_sn_proporcion_simple_sql(f_inicio, f_final, lugar):
 
         
         
-        input(f"resultado: {resultado_radio_tv}")
-        input(f"resultado_redes_sociales: {resultado_redes_sociales}") 
+        print(f"resultado: {resultado_radio_tv}")
+        print(f"resultado_redes_sociales: {resultado_redes_sociales}") 
         
         if resultado_radio_tv is None or resultado_radio_tv.empty:
             print(f"No se encontró el lugar: {lugar} o no hay datos para el período especificado")
