@@ -157,128 +157,206 @@ class CoctelSections:
     # =====================================================
     
     def section_sn_proporcion_basica(self, global_filters: Dict[str, Any], mostrar_todos: bool):
-        """SN.- Proporción de cocteles en lugar y fecha específica"""
-        st.subheader("SN.- Proporción de cocteles en lugar y fecha específica")
-
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("sn", global_filters)
-
-        if not global_filters.get('use_global_locations'):
-            option_lugar = st.selectbox("Lugar", self.lugares_uniques, key="lugar_sn")
-        else:
-            option_lugar = st.selectbox("Lugar", global_filters['global_lugares'], key="lugar_sn")
-
-        # Use same data source logic as S25
-        # For Radio/TV: use combined data (keep current working logic)
-
-        #traer de la bd, cocteles segun la fecha y el lugar elegido:
-        #input(option_lugar)
-        #input(global_filters)
-
-        data= data_section_sn_proporcion_simple_sql(fecha_inicio,fecha_fin,option_lugar) 
-        print(data)
-
-        temp_data = self.temp_coctel_fuente[
-            (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente['lugar'] == option_lugar)
-        ]
-
-        fb_data = self.temp_coctel_fuente_fb[
-            (self.temp_coctel_fuente_fb['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente_fb['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente_fb['lugar'] == option_lugar)
-        ]
-
-        # Combine data for Radio/TV (keep existing logic)
-        if not fb_data.empty:
-            common_cols = list(set(temp_data.columns) & set(fb_data.columns))
-            if common_cols:
-                combined_data = pd.concat([temp_data[common_cols], fb_data[common_cols]], ignore_index=True)
-            else:
-                combined_data = temp_data.copy()
-                st.warning("⚠️ no common columns between data sources, using main source only")
-        else:
-            combined_data = temp_data.copy()
-
-        if not combined_data.empty or not fb_data.empty:
-            # Calculate results for Radio/TV using combined data
-            result_radio_tv = self.analytics.calculate_coctel_proportion(combined_data) if not combined_data.empty else {}
-            
-            # For Redes, use S25 logic to get disaggregated data
-            redes_temp_data = self.temp_coctel_fuente_fb[
-                (self.temp_coctel_fuente_fb["fecha_registro"] >= fecha_inicio) &
-                (self.temp_coctel_fuente_fb["fecha_registro"] <= fecha_fin) &
-                (self.temp_coctel_fuente_fb["lugar"] == option_lugar)
-            ]
-            
-            # Filter and dedupe like S25
-            redes_temp_data = redes_temp_data[['id', 'fecha_registro', 'lugar', 'coctel', 'nombre_facebook_page']].drop_duplicates()
-            redes_temp_data = redes_temp_data[
-                redes_temp_data['nombre_facebook_page'].notna() &
-                (redes_temp_data['nombre_facebook_page'] != '')
-            ]
-            
-            # Get S25-style results
-            if not redes_temp_data.empty:
-                result_coctel_s25, result_total_s25 = self.analytics.calculate_program_impacts_complete(redes_temp_data, "Redes")
-                
-                # Sum the totals from S25 results
-                coctel_total = 0
-                total_total = 0
-                
-                if not result_coctel_s25.empty:
-                    numeric_cols_coctel = result_coctel_s25.select_dtypes(include=['number']).columns
-                    if len(numeric_cols_coctel) > 0:
-                        coctel_total = result_coctel_s25[numeric_cols_coctel].sum().sum()
-                
-                if not result_total_s25.empty:
-                    numeric_cols_total = result_total_s25.select_dtypes(include=['number']).columns
-                    if len(numeric_cols_total) > 0:
-                        total_total = result_total_s25[numeric_cols_total].sum().sum()
-                
-                # Calculate otras fuentes
-                otras_fuentes = total_total - coctel_total
-                
-                # Create proportion dataframe
-                if total_total > 0:
-                    coctel_prop = (coctel_total / total_total) * 100
-                    otras_prop = (otras_fuentes / total_total) * 100
-                    
-                    redes_proportion_df = pd.DataFrame({
-                        'Fuente': ['Coctel noticias', 'Otras fuentes'],
-                        'Total': [coctel_total, otras_fuentes],
-                        'Proporción (%)': [f"{coctel_prop:.1f}%", f"{otras_prop:.1f}%"]
-                    })
-                else:
-                    redes_proportion_df = pd.DataFrame()
-            else:
-                redes_proportion_df = pd.DataFrame()
-
-            st.write(f"Proporción de cocteles en {option_lugar} entre {fecha_inicio.strftime('%d.%m.%Y')} y {fecha_fin.strftime('%d.%m.%Y')}")
-
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.write("Radio")
-                if "Radio" in result_radio_tv and not result_radio_tv["Radio"].empty:
-                    st.dataframe(result_radio_tv["Radio"], hide_index=True)
-                else:
-                    st.write("Sin datos")
-
-            with col2:
-                st.write("TV")
-                if "TV" in result_radio_tv and not result_radio_tv["TV"].empty:
-                    st.dataframe(result_radio_tv["TV"], hide_index=True)
-                else:
-                    st.write("Sin datos")
-
-            with col3:
-                st.write("Redes")
-                if not redes_proportion_df.empty:
-                    st.dataframe(redes_proportion_df, hide_index=True)
-                else:
-                    st.write("Sin datos")
-        else:
-            st.warning("No hay datos para mostrar")
+      """SN.- Proporción de cocteles en lugar y fecha específica"""
+      st.subheader("SN.- Proporción de cocteles en lugar y fecha específica")
+  
+      fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("sn", global_filters)
+  
+      if not global_filters.get('use_global_locations'):
+          option_lugar = st.selectbox("Lugar", self.lugares_uniques, key="lugar_sn")
+      else:
+          option_lugar = st.selectbox("Lugar", global_filters['global_lugares'], key="lugar_sn")
+  
+      # Obtener datos de la base de datos usando la nueva función
+      try:
+          resultado_radio, resultado_tv, resultado_redes_sociales = data_section_sn_proporcion_simple_sql(
+              fecha_inicio, fecha_fin, option_lugar
+          )
+          
+          # Verificar si se obtuvieron datos válidos
+          datos_disponibles = (
+              not resultado_radio.empty or 
+              not resultado_tv.empty or 
+              not resultado_redes_sociales.empty
+          )
+          
+          if datos_disponibles:
+              st.write(f"Proporción de cocteles en {option_lugar} entre {fecha_inicio.strftime('%d.%m.%Y')} y {fecha_fin.strftime('%d.%m.%Y')}")
+  
+              col1, col2, col3 = st.columns(3)
+              
+              with col1:
+                  st.write("Radio")
+                  if not resultado_radio.empty:
+                      # Convertir la estructura para que sea más legible
+                      display_radio = resultado_radio.copy()
+                      display_radio['tipo_coctel'] = display_radio['tipo_coctel'].replace({
+                          'CON_COCTEL': 'Coctel noticias',
+                          'SIN_COCTEL': 'Otras fuentes'
+                      })
+                      display_radio = display_radio.rename(columns={
+                          'tipo_coctel': 'Fuente',
+                          'cantidad': 'Total',
+                          'porcentaje': 'Proporción (%)'
+                      })
+                      # Formatear porcentaje
+                      display_radio['Proporción (%)'] = display_radio['Proporción (%)'].apply(lambda x: f"{x:.1f}%")
+                      st.dataframe(display_radio[['Fuente', 'Total', 'Proporción (%)']], hide_index=True)
+                  else:
+                      st.write("Sin datos")
+  
+              with col2:
+                  st.write("TV")
+                  if not resultado_tv.empty:
+                      # Convertir la estructura para que sea más legible
+                      display_tv = resultado_tv.copy()
+                      display_tv['tipo_coctel'] = display_tv['tipo_coctel'].replace({
+                          'CON_COCTEL': 'Coctel noticias',
+                          'SIN_COCTEL': 'Otras fuentes'
+                      })
+                      display_tv = display_tv.rename(columns={
+                          'tipo_coctel': 'Fuente',
+                          'cantidad': 'Total',
+                          'porcentaje': 'Proporción (%)'
+                      })
+                      # Formatear porcentaje
+                      display_tv['Proporción (%)'] = display_tv['Proporción (%)'].apply(lambda x: f"{x:.1f}%")
+                      st.dataframe(display_tv[['Fuente', 'Total', 'Proporción (%)']], hide_index=True)
+                  else:
+                      st.write("Sin datos")
+  
+              with col3:
+                  st.write("Redes")
+                  if not resultado_redes_sociales.empty:
+                      # Convertir la estructura para que sea más legible
+                      display_redes = resultado_redes_sociales.copy()
+                      display_redes['tipo_coctel'] = display_redes['tipo_coctel'].replace({
+                          'CON_COCTEL': 'Coctel noticias',
+                          'SIN_COCTEL': 'Otras fuentes'
+                      })
+                      display_redes = display_redes.rename(columns={
+                          'tipo_coctel': 'Fuente',
+                          'cantidad': 'Total',
+                          'porcentaje': 'Proporción (%)'
+                      })
+                      # Formatear porcentaje
+                      display_redes['Proporción (%)'] = display_redes['Proporción (%)'].apply(lambda x: f"{x:.1f}%")
+                      st.dataframe(display_redes[['Fuente', 'Total', 'Proporción (%)']], hide_index=True)
+                  else:
+                      st.write("Sin datos")
+          else:
+              st.warning("No hay datos para mostrar")
+              
+      except Exception as e:
+          st.error(f"Error al obtener los datos: {e}")
+          print(f"Error en section_sn_proporcion_basica: {e}")
+          
+          # Fallback al código anterior si hay problemas con la nueva función
+          st.info("Intentando con método alternativo...")
+          
+          # Código de respaldo (tu lógica anterior)
+          temp_data = self.temp_coctel_fuente[
+              (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
+              (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
+              (self.temp_coctel_fuente['lugar'] == option_lugar)
+          ]
+  
+          fb_data = self.temp_coctel_fuente_fb[
+              (self.temp_coctel_fuente_fb['fecha_registro'] >= fecha_inicio) &
+              (self.temp_coctel_fuente_fb['fecha_registro'] <= fecha_fin) &
+              (self.temp_coctel_fuente_fb['lugar'] == option_lugar)
+          ]
+  
+          # Combine data for Radio/TV (keep existing logic)
+          if not fb_data.empty:
+              common_cols = list(set(temp_data.columns) & set(fb_data.columns))
+              if common_cols:
+                  combined_data = pd.concat([temp_data[common_cols], fb_data[common_cols]], ignore_index=True)
+              else:
+                  combined_data = temp_data.copy()
+                  st.warning("⚠️ no common columns between data sources, using main source only")
+          else:
+              combined_data = temp_data.copy()
+  
+          if not combined_data.empty or not fb_data.empty:
+              # Calculate results for Radio/TV using combined data
+              result_radio_tv = self.analytics.calculate_coctel_proportion(combined_data) if not combined_data.empty else {}
+              
+              # For Redes, use S25 logic to get disaggregated data
+              redes_temp_data = self.temp_coctel_fuente_fb[
+                  (self.temp_coctel_fuente_fb["fecha_registro"] >= fecha_inicio) &
+                  (self.temp_coctel_fuente_fb["fecha_registro"] <= fecha_fin) &
+                  (self.temp_coctel_fuente_fb["lugar"] == option_lugar)
+              ]
+              
+              # Filter and dedupe like S25
+              redes_temp_data = redes_temp_data[['id', 'fecha_registro', 'lugar', 'coctel', 'nombre_facebook_page']].drop_duplicates()
+              redes_temp_data = redes_temp_data[
+                  redes_temp_data['nombre_facebook_page'].notna() &
+                  (redes_temp_data['nombre_facebook_page'] != '')
+              ]
+              
+              # Get S25-style results
+              if not redes_temp_data.empty:
+                  result_coctel_s25, result_total_s25 = self.analytics.calculate_program_impacts_complete(redes_temp_data, "Redes")
+                  
+                  # Sum the totals from S25 results
+                  coctel_total = 0
+                  total_total = 0
+                  
+                  if not result_coctel_s25.empty:
+                      numeric_cols_coctel = result_coctel_s25.select_dtypes(include=['number']).columns
+                      if len(numeric_cols_coctel) > 0:
+                          coctel_total = result_coctel_s25[numeric_cols_coctel].sum().sum()
+                  
+                  if not result_total_s25.empty:
+                      numeric_cols_total = result_total_s25.select_dtypes(include=['number']).columns
+                      if len(numeric_cols_total) > 0:
+                          total_total = result_total_s25[numeric_cols_total].sum().sum()
+                  
+                  # Calculate otras fuentes
+                  otras_fuentes = total_total - coctel_total
+                  
+                  # Create proportion dataframe
+                  if total_total > 0:
+                      coctel_prop = (coctel_total / total_total) * 100
+                      otras_prop = (otras_fuentes / total_total) * 100
+                      
+                      redes_proportion_df = pd.DataFrame({
+                          'Fuente': ['Coctel noticias', 'Otras fuentes'],
+                          'Total': [coctel_total, otras_fuentes],
+                          'Proporción (%)': [f"{coctel_prop:.1f}%", f"{otras_prop:.1f}%"]
+                      })
+                  else:
+                      redes_proportion_df = pd.DataFrame()
+              else:
+                  redes_proportion_df = pd.DataFrame()
+  
+              st.write(f"Proporción de cocteles en {option_lugar} entre {fecha_inicio.strftime('%d.%m.%Y')} y {fecha_fin.strftime('%d.%m.%Y')}")
+  
+              col1, col2, col3 = st.columns(3)
+              with col1:
+                  st.write("Radio")
+                  if "Radio" in result_radio_tv and not result_radio_tv["Radio"].empty:
+                      st.dataframe(result_radio_tv["Radio"], hide_index=True)
+                  else:
+                      st.write("Sin datos")
+  
+              with col2:
+                  st.write("TV")
+                  if "TV" in result_radio_tv and not result_radio_tv["TV"].empty:
+                      st.dataframe(result_radio_tv["TV"], hide_index=True)
+                  else:
+                      st.write("Sin datos")
+  
+              with col3:
+                  st.write("Redes")
+                  if not redes_proportion_df.empty:
+                      st.dataframe(redes_proportion_df, hide_index=True)
+                  else:
+                      st.write("Sin datos")
+          else:
+              st.warning("No hay datos para mostrar")
     
     def section_8_conteo_posiciones(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """8.- Gráfico de barras contando posiciones"""

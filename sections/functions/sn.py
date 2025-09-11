@@ -1,8 +1,8 @@
 import pandas as pd
 import psycopg2
 import os
-from typing import Optional, List, Any
-#l
+from typing import Optional, List, Any, Tuple
+
 def calcular_porcentajes_radio_tv(resultado_radio_tv):
     """
     Calcula los porcentajes de radio y TV con y sin cóctel (nota)
@@ -105,7 +105,6 @@ def ejecutar_query(query: str, params: Optional[List[Any]] = None) -> Optional[p
             connection.close()
 
 def obtener_id_lugar(nombre_lugar):
-
     query = """
     SELECT id, nombre 
     FROM lugares 
@@ -126,13 +125,14 @@ def obtener_id_lugar(nombre_lugar):
         print(f"Error al buscar el lugar '{nombre_lugar}': {e}")
         return None
 
-def data_section_sn_proporcion_simple_sql(f_inicio, f_final, lugar):
-    lugar=obtener_id_lugar(lugar)
-
+def data_section_sn_proporcion_simple_sql(f_inicio, f_final, lugar) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Versión que ejecuta todo en una sola query SQL y retorna los resultados por separado
     
+    Returns:
+        Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: (resultado_radio, resultado_tv, resultado_redes_sociales)
     """
-    Versión que ejecuta todo en una sola query SQL
-    """
+    lugar = obtener_id_lugar(lugar)
     
     query_radio_tv = """
         SELECT 
@@ -152,6 +152,7 @@ def data_section_sn_proporcion_simple_sql(f_inicio, f_final, lugar):
             AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date <= %s::date
         ORDER BY f.nombre, p.id, a.id;
         """
+    
     query_redes_sociales = """
            WITH acontecimientos_redes AS (
              SELECT 
@@ -177,28 +178,42 @@ def data_section_sn_proporcion_simple_sql(f_inicio, f_final, lugar):
            GROUP BY tipo_coctel
            ORDER BY tipo_coctel;
            """
+    
     try:
-        #radio+tv
+        # Radio + TV
         resultado_radio_tv = ejecutar_query(query_radio_tv, params=[lugar, f_inicio, f_final])
         resultado_radio_tv = resultado_radio_tv.drop_duplicates(subset=['programa_nombre', 'acontecimiento_id'])
-     #   resultado_radio_tv = calcular_porcentajes_radio_tv(resultado_radio_tv)
-        #redes sociales
-        resultado_redes_sociales = ejecutar_query(query_redes_sociales,params=[lugar, f_inicio, f_final])
-        resultado_radio_tv = calcular_porcentajes_radio_tv(resultado_radio_tv)
-
         
+        # Redes sociales
+        resultado_redes_sociales = ejecutar_query(query_redes_sociales, params=[lugar, f_inicio, f_final])
         
-        print(f"resultado: {resultado_radio_tv}")
-        print(f"resultado_redes_sociales: {resultado_redes_sociales}") 
+        # Procesar radio y TV
+        porcentajes_radio_tv = calcular_porcentajes_radio_tv(resultado_radio_tv)
         
-        if resultado_radio_tv is None or resultado_radio_tv.empty:
-            print(f"No se encontró el lugar: {lugar} o no hay datos para el período especificado")
-            return None
-
-
-        return resultado_radio_tv, resultado_redes_sociales
+        # Separar los resultados
+        resultado_radio = porcentajes_radio_tv['RADIO']
+        resultado_tv = porcentajes_radio_tv['TV']
+        
+        # Debug prints (puedes comentarlos en producción)
+        print(f"Resultado RADIO: {resultado_radio}")
+        print(f"Resultado TV: {resultado_tv}")
+        print(f"Resultado redes sociales: {resultado_redes_sociales}")
+        
+        if resultado_redes_sociales is None or resultado_redes_sociales.empty:
+            # Crear DataFrame vacío con estructura esperada para redes sociales
+            resultado_redes_sociales = pd.DataFrame({
+                'tipo_coctel': ['CON_COCTEL', 'SIN_COCTEL'], 
+                'cantidad': [0, 0], 
+                'porcentaje': [0.0, 0.0]
+            })
+        
+        return resultado_radio, resultado_tv, resultado_redes_sociales
         
     except Exception as e:
         print(f"Error al ejecutar la consulta: {e}")
-        return None
-    
+        # Retornar DataFrames vacíos en caso de error
+        df_vacio = pd.DataFrame({'tipo_coctel': ['CON_COCTEL', 'SIN_COCTEL'], 'cantidad': [0, 0], 'porcentaje': [0.0, 0.0]})
+        return df_vacio, df_vacio, df_vacio
+
+# Ejemplo de uso:
+# resultado_radio, resultado_tv, resultado_redes_sociales = data_section_sn_proporcion_simple_sql('2024-01-01', '2024-12-31', 'Lima')
