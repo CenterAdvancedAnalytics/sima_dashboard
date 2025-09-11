@@ -358,6 +358,36 @@ class CoctelSections:
           else:
               st.warning("No hay datos para mostrar")
     
+    def section_1_proporcion_combinada(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+       from sections.functions.grafico1 import data_section_1_proporcion_combinada_sql, convertir_a_formato_streamlit
+       
+       """1.- Proporción de cocteles en lugar, fuentes y fechas específicas"""
+       st.subheader("1.- Proporción de cocteles en lugar, fuentes y fechas específicas")
+       
+       fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s1", global_filters)
+       
+       option_fuente = st.multiselect(
+           "Fuente", ["Radio", "TV", "Redes"], 
+           ["Radio", "TV", "Redes"], key="fuente_s1"
+       )
+           
+       option_lugares = self.filter_manager.get_section_locations("s1", global_filters, multi=True)
+       
+       st.write(f"Proporción de cocteles en {', '.join(option_lugares)} entre {fecha_inicio.strftime('%d.%m.%Y')} y {fecha_fin.strftime('%d.%m.%Y')}")
+       
+       # Usar tu función SQL
+       resultado = data_section_1_proporcion_combinada_sql(
+           fecha_inicio.strftime('%Y-%m-%d'),
+           fecha_fin.strftime('%Y-%m-%d'),
+           option_lugares,
+           option_fuente
+       )  
+       
+       if not resultado.empty:
+           df_resultado = convertir_a_formato_streamlit(resultado)
+           st.dataframe(df_resultado, hide_index=True)
+       else:
+           st.warning("No hay datos para mostrar")
     def section_8_conteo_posiciones(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """8.- Gráfico de barras contando posiciones"""
         st.subheader("8.- Gráfico de barras contando posiciones en lugar y fecha específica")
@@ -1537,35 +1567,6 @@ class CoctelSections:
         else:
             st.warning("No hay datos para la selección actual.")
         
-    def section_1_proporcion_combinada(self, global_filters: Dict[str, Any], mostrar_todos: bool):
-        """1.- Proporción de cocteles en lugar, fuentes y fechas específicas"""
-        st.subheader("1.- Proporción de cocteles en lugar, fuentes y fechas específicas")
-        
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s1", global_filters)
-        
-        option_fuente = st.multiselect(
-            "Fuente", ["Radio", "TV", "Redes"], 
-            ["Radio", "TV", "Redes"], key="fuente_s1"
-        )
-            
-        option_lugares = self.filter_manager.get_section_locations("s1", global_filters, multi=True)
-        
-        temp_data = self.temp_coctel_fuente[
-            (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente['lugar'].isin(option_lugares))
-        ]
-        
-        st.write(f"Proporción de cocteles en {', '.join(option_lugares)} entre {fecha_inicio.strftime('%d.%m.%Y')} y {fecha_fin.strftime('%d.%m.%Y')}")
-        
-        if not temp_data.empty:
-            result = self.analytics.calculate_coctel_proportion_combined(temp_data, option_fuente, option_lugares)
-            if not result.empty:
-                st.dataframe(result, hide_index=True)
-            else:
-                st.warning("No hay datos para mostrar")
-        else:
-            st.warning("No hay datos para mostrar")
     
     def section_2_posicion_por_fuente(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """2.- Posición por fuente en lugar y fecha específica"""
