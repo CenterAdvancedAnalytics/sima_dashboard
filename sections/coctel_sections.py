@@ -463,65 +463,67 @@ class CoctelSections:
          
      else:
          st.warning("No hay datos para mostrar")
-   
-   # def section_8_conteo_posiciones(self, global_filters: Dict[str, Any], mostrar_todos: bool):
-   #     """8.- Gráfico de barras contando posiciones"""
-   #     st.subheader("8.- Gráfico de barras contando posiciones en lugar y fecha específica")
-   #     
-   #     fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s8", global_filters)
-   #     
-   #     col1, col2, col3 = st.columns(3)
-   #     with col1:
-   #         # Local location selector - independent of global filters
-   #         available_locations = self.temp_coctel_fuente['lugar'].dropna().unique()
-   #         option_lugar = st.selectbox(
-   #             "Lugar", 
-   #             options=sorted(available_locations), 
-   #             key="lugar_s8"
-   #         )
-   #     with col2:
-   #         option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s8")
-   #     with col3:
-   #         option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s8")
-   #     
-   #     temp_data = self.temp_coctel_fuente[
-   #         (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
-   #         (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
-   #         (self.temp_coctel_fuente['lugar'] == option_lugar)
-   #     ]
-   #     
-   #     if not temp_data.empty:
-   #         conteo_data = self.analytics.calculate_position_count(temp_data, option_fuente, option_nota)
-   #         
-   #         if not conteo_data.empty:
-   #             titulo = f'Conteo de posiciones {option_nota.lower()} en {option_lugar} por tipo de medio'
-   #             if option_fuente != "Todos":
-   #                 titulo = f'Conteo de posiciones {option_nota.lower()} en {option_lugar} - {option_fuente}'
-   #             
-   #             fig = px.bar(
-   #                 conteo_data,
-   #                 x='Posición',
-   #                 y='count',
-   #                 color='Tipo de Medio',
-   #                 title=titulo,
-   #                 barmode='group',
-   #                 labels={'count': 'Conteo', 'Posición': 'Posición', 'Tipo de Medio': 'Tipo de Medio'},
-   #                 color_discrete_map=FUENTE_COLORS,
-   #                 text='count'
-   #             )
-   #             
-   #             fig.update_layout(
-   #                 xaxis_title='Posición',
-   #                 yaxis_title='Conteo',
-   #                 legend_title='Tipo de Medio'
-   #             )
-   #             
-   #             st.plotly_chart(fig, use_container_width=True)
-   #         else:
-   #             st.warning("No hay datos para mostrar")
-   #     else:
-   #         st.warning("No hay datos para mostrar")
-    
+    '''
+    def section_8_conteo_posiciones(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+        """8.- Gráfico de barras contando posiciones"""
+        st.subheader("8.- Gráfico de barras contando posiciones en lugar y fecha específica")
+        
+        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s8", global_filters)
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            # Local location selector - independent of global filters
+            available_locations = self.temp_coctel_fuente['lugar'].dropna().unique()
+            option_lugar = st.selectbox(
+                "Lugar", 
+                options=sorted(available_locations), 
+                key="lugar_s8"
+            )
+        with col2:
+            option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s8")
+        with col3:
+            option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s8")
+        
+        temp_data = self.temp_coctel_fuente[
+            (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
+            (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
+            (self.temp_coctel_fuente['lugar'] == option_lugar)
+        ]
+        
+        if not temp_data.empty:
+            conteo_data = self.analytics.calculate_position_count(temp_data, option_fuente, option_nota)
+            
+            if not conteo_data.empty:
+                titulo = f'Conteo de posiciones {option_nota.lower()} en {option_lugar} por tipo de medio'
+                if option_fuente != "Todos":
+                    titulo = f'Conteo de posiciones {option_nota.lower()} en {option_lugar} - {option_fuente}'
+                
+                fig = px.bar(
+                    conteo_data,
+                    x='Posición',
+                    y='count',
+                    color='Tipo de Medio',
+                    title=titulo,
+                    barmode='group',
+                    labels={'count': 'Conteo', 'Posición': 'Posición', 'Tipo de Medio': 'Tipo de Medio'},
+                    color_discrete_map=FUENTE_COLORS,
+                    text='count'
+                )
+                
+                fig.update_layout(
+                    xaxis_title='Posición',
+                    yaxis_title='Conteo',
+                    legend_title='Tipo de Medio'
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.warning("No hay datos para mostrar")
+        else:
+            st.warning("No hay datos para mostrar")
+    ''' 
+
+    '''
     def section_9_distribucion_posiciones(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """9.- Gráfico de dona que representa el porcentaje de posiciones"""
         st.subheader("9.- Gráfico de dona que representa el porcentaje de posiciones en lugar y fecha específica")
@@ -568,7 +570,60 @@ class CoctelSections:
                 st.warning("No hay datos para mostrar")
         else:
             st.warning("No hay datos para mostrar")
-    
+    '''
+    def section_9_distribucion_posiciones(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+     """9.- Gráfico de dona que representa el porcentaje de posiciones"""
+     from sections.functions.grafico9 import data_section_9_distribucion_posiciones_sql, convertir_posicion_a_nombre
+     
+     st.subheader("9.- Gráfico de dona que representa el porcentaje de posiciones en lugar y fecha específica")
+     
+     fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s9", global_filters)
+     
+     col1, col2 = st.columns(2)
+     with col1:
+         option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s9")
+     with col2:
+         option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s9")
+     
+     option_lugares = self.filter_manager.get_section_locations("s9", global_filters, multi=True)
+     
+     # Usar la nueva función SQL
+     distrib_data = data_section_9_distribucion_posiciones_sql(
+         fecha_inicio.strftime('%Y-%m-%d'),
+         fecha_fin.strftime('%Y-%m-%d'),
+         option_lugares,
+         option_fuente,
+         option_nota
+     )
+     
+     if not distrib_data.empty:
+         # Convertir posiciones a nombres si es necesario
+         distrib_data = convertir_posicion_a_nombre(distrib_data)
+         
+         # Crear el título dinámico
+         if option_nota == 'Con coctel':
+             titulo = 'Porcentaje de posiciones con coctel respecto del total'
+         elif option_nota == 'Sin coctel':
+             titulo = 'Porcentaje de posiciones sin coctel respecto del total'
+         else:
+             titulo = 'Porcentaje de posiciones respecto del total'
+         
+         # Crear el gráfico de dona
+         fig = px.pie(
+             distrib_data,
+             values='count',
+             names='Posición',
+             title=titulo,
+             color='Posición',
+             color_discrete_map=COLOR_POSICION_DICT,
+             hole=0.3
+         )
+         
+         st.plotly_chart(fig, use_container_width=True)
+         
+     else:
+         st.warning("No hay datos para mostrar")
+     
     def section_10_eventos_coctel(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """10.- Porcentaje de acontecimientos con coctel"""
         st.subheader("10.- Porcentaje de acontecimientos con coctel en lugar y fecha específica")
