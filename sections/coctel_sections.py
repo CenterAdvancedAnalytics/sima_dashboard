@@ -743,6 +743,54 @@ class CoctelSections:
         else:
             st.warning("No hay datos para mostrar")
     '''
+
+    def section_11_cocteles_fuente_lugar(self, global_filters: Dict[str, Any]):
+      """11.- Cantidad de cocteles por fuente y lugar"""
+      from sections.functions.grafico11 import data_section_11_conteo_integrado_sql
+      
+      st.subheader("11.- Cantidad de cocteles por fuente y lugar en fecha específica")
+      
+      fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s11", global_filters)
+      option_lugares = self.filter_manager.get_section_locations("s11", global_filters, multi=True)
+      
+      # Usar la nueva función SQL de grafico11
+      try:
+          resultado = data_section_11_conteo_integrado_sql(
+              fecha_inicio.strftime('%Y-%m-%d'),
+              fecha_fin.strftime('%Y-%m-%d'),
+              option_lugares
+          )
+      except Exception as e:
+          st.error(f"ERROR al ejecutar la consulta: {e}")
+          st.warning("No hay datos para mostrar")
+          return
+      
+      if not resultado.empty:
+          # Mostrar solo las columnas de cocteles como solicitaste
+          result_display = resultado[['Lugar', 'Radio_Con_Coctel', 'TV_Con_Coctel', 'Redes_Con_Coctel']].copy()
+          result_display = result_display.rename(columns={
+              'Lugar': 'lugar',
+              'Radio_Con_Coctel': 'radio con coctel', 
+              'TV_Con_Coctel': 'tv con coctel',
+              'Redes_Con_Coctel': 'redes con coctel'
+          })
+          
+          # Filtrar columnas que tienen datos para mantener formato limpio
+          columns_to_show = ['lugar']
+          if result_display['radio con coctel'].sum() > 0:
+              columns_to_show.append('radio con coctel')
+          if result_display['tv con coctel'].sum() > 0:
+              columns_to_show.append('tv con coctel') 
+          if result_display['redes con coctel'].sum() > 0:
+              columns_to_show.append('redes con coctel')
+          
+          result_final = result_display[columns_to_show]
+          
+          st.write(f"Cantidad de cocteles por fuente y lugar entre {fecha_inicio.strftime('%d.%m.%Y')} y {fecha_fin.strftime('%d.%m.%Y')}")
+          st.dataframe(result_final, hide_index=True)
+      else:
+          st.warning("No hay datos para mostrar")
+    '''
     def section_11_cocteles_fuente_lugar(self, global_filters: Dict[str, Any]):
         """11.- Cantidad de cocteles por fuente y lugar"""
         st.subheader("11.- Cantidad de cocteles por fuente y lugar en fecha específica")
@@ -766,7 +814,9 @@ class CoctelSections:
                 st.warning("No hay datos para mostrar")
         else:
             st.warning("No hay datos para mostrar")
-    
+
+    '''        
+              
     def section_12_medios_generan_coctel(self, global_filters: Dict[str, Any]):
         """12.- Reporte semanal acerca de cuantas radios, redes y tv generaron coctel"""
         st.subheader("12.- Reporte semanal acerca de cuantas radios, redes y tv generaron coctel")

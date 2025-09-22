@@ -155,13 +155,13 @@ def conteo_eventos_radio_tv_integrado(fecha_inicio: str, fecha_fin: str, ids_lug
     )
     SELECT 
         lugar_nombre as Lugar,
-        (radio_con_coctel + radio_sin_coctel) as Radio,
-        (tv_con_coctel + tv_sin_coctel) as TV,
+        COALESCE(radio_con_coctel + radio_sin_coctel, 0) as Radio,
+        COALESCE(tv_con_coctel + tv_sin_coctel, 0) as TV,
         -- Desglose detallado
-        radio_con_coctel as Radio_Con_Coctel,
-        radio_sin_coctel as Radio_Sin_Coctel,
-        tv_con_coctel as TV_Con_Coctel,
-        tv_sin_coctel as TV_Sin_Coctel
+        COALESCE(radio_con_coctel, 0) as Radio_Con_Coctel,
+        COALESCE(radio_sin_coctel, 0) as Radio_Sin_Coctel,
+        COALESCE(tv_con_coctel, 0) as TV_Con_Coctel,
+        COALESCE(tv_sin_coctel, 0) as TV_Sin_Coctel
     FROM pivot_data
     ORDER BY lugar_nombre;
     """
@@ -228,10 +228,10 @@ def conteo_eventos_redes_integrado(fecha_inicio: str, fecha_fin: str, ids_lugare
     )
     SELECT 
         lugar_nombre as Lugar,
-        (redes_con_coctel + redes_sin_coctel) as Redes,
+        COALESCE(redes_con_coctel + redes_sin_coctel, 0) as Redes,
         -- Desglose detallado
-        redes_con_coctel as Redes_Con_Coctel,
-        redes_sin_coctel as Redes_Sin_Coctel
+        COALESCE(redes_con_coctel, 0) as Redes_Con_Coctel,
+        COALESCE(redes_sin_coctel, 0) as Redes_Sin_Coctel
     FROM pivot_data
     ORDER BY lugar_nombre;
     """
@@ -277,51 +277,73 @@ def data_section_11_conteo_integrado_sql(fecha_inicio: str, fecha_fin: str, luga
         print(f"DEBUG: Consultando Radio/TV...")
         resultado_radio_tv = conteo_eventos_radio_tv_integrado(fecha_inicio, fecha_fin, ids_lugares)
         print(f"DEBUG: Resultado Radio/TV: {len(resultado_radio_tv)} filas")
+        if not resultado_radio_tv.empty:
+            print(f"DEBUG: Columnas Radio/TV: {resultado_radio_tv.columns.tolist()}")
         
         # Obtener datos de Redes
         print(f"DEBUG: Consultando Redes...")
         resultado_redes = conteo_eventos_redes_integrado(fecha_inicio, fecha_fin, ids_lugares)
         print(f"DEBUG: Resultado Redes: {len(resultado_redes)} filas")
+        if not resultado_redes.empty:
+            print(f"DEBUG: Columnas Redes: {resultado_redes.columns.tolist()}")
         
-        # Combinar los resultados
+        # Combinar los resultados - CORRIGIENDO EL MERGE CON NOMBRES CORRECTOS
         if not resultado_radio_tv.empty and not resultado_redes.empty:
-            # Hacer merge por Lugar
+            # Hacer merge por 'lugar' (minúscula, no 'Lugar')
             resultado_final = resultado_radio_tv.merge(
                 resultado_redes, 
-                on='Lugar', 
+                on='lugar', 
                 how='outer'
             )
+            print(f"DEBUG: Merge exitoso con {len(resultado_final)} filas")
         elif not resultado_radio_tv.empty:
-            # Solo Radio/TV
+            # Solo Radio/TV - agregar columnas de Redes con ceros
             resultado_final = resultado_radio_tv.copy()
-            resultado_final['Redes'] = 0
-            resultado_final['Redes_Con_Coctel'] = 0
-            resultado_final['Redes_Sin_Coctel'] = 0
+            resultado_final['redes'] = 0
+            resultado_final['redes_con_coctel'] = 0
+            resultado_final['redes_sin_coctel'] = 0
+            print(f"DEBUG: Solo Radio/TV con {len(resultado_final)} filas")
         elif not resultado_redes.empty:
-            # Solo Redes
+            # Solo Redes - agregar columnas de Radio/TV con ceros
             resultado_final = resultado_redes.copy()
-            resultado_final['Radio'] = 0
-            resultado_final['TV'] = 0
-            resultado_final['Radio_Con_Coctel'] = 0
-            resultado_final['Radio_Sin_Coctel'] = 0
-            resultado_final['TV_Con_Coctel'] = 0
-            resultado_final['TV_Sin_Coctel'] = 0
+            resultado_final['radio'] = 0
+            resultado_final['tv'] = 0
+            resultado_final['radio_con_coctel'] = 0
+            resultado_final['radio_sin_coctel'] = 0
+            resultado_final['tv_con_coctel'] = 0
+            resultado_final['tv_sin_coctel'] = 0
+            print(f"DEBUG: Solo Redes con {len(resultado_final)} filas")
         else:
             # Sin datos
+            print("DEBUG: Sin datos de ninguna fuente")
             resultado_final = pd.DataFrame()
         
-        # Llenar NaN con 0
+        # Llenar NaN con 0 y convertir a enteros
         if not resultado_final.empty:
             resultado_final = resultado_final.fillna(0)
-            # Asegurar que las columnas numéricas sean enteros
-            numeric_cols = ['Radio', 'TV', 'Redes', 'Radio_Con_Coctel', 'Radio_Sin_Coctel', 
-                          'TV_Con_Coctel', 'TV_Sin_Coctel', 'Redes_Con_Coctel', 'Redes_Sin_Coctel']
+            # Asegurar que las columnas numéricas sean enteros (nombres en minúscula)
+            numeric_cols = ['radio', 'tv', 'redes', 'radio_con_coctel', 'radio_sin_coctel', 
+                          'tv_con_coctel', 'tv_sin_coctel', 'redes_con_coctel', 'redes_sin_coctel']
             for col in numeric_cols:
                 if col in resultado_final.columns:
                     resultado_final[col] = resultado_final[col].astype(int)
+            
+            # Renombrar columnas a formato esperado (mayúsculas para compatibilidad)
+            resultado_final = resultado_final.rename(columns={
+                'lugar': 'Lugar',
+                'radio': 'Radio', 
+                'tv': 'TV', 
+                'redes': 'Redes',
+                'radio_con_coctel': 'Radio_Con_Coctel',
+                'radio_sin_coctel': 'Radio_Sin_Coctel',
+                'tv_con_coctel': 'TV_Con_Coctel', 
+                'tv_sin_coctel': 'TV_Sin_Coctel',
+                'redes_con_coctel': 'Redes_Con_Coctel',
+                'redes_sin_coctel': 'Redes_Sin_Coctel'
+            })
         
         print(f"DEBUG: Resultado final combinado: {len(resultado_final)} filas")
-        print(f"DEBUG: Columnas: {resultado_final.columns.tolist() if not resultado_final.empty else 'N/A'}")
+        print(f"DEBUG: Columnas finales: {resultado_final.columns.tolist() if not resultado_final.empty else 'N/A'}")
         
         return resultado_final
         
