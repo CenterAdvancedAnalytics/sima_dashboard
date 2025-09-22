@@ -73,13 +73,13 @@ def obtener_id_lugar(nombre_lugar):
         print(f"Error al buscar el lugar '{nombre_lugar}': {e}")
         return None
 
-def conteo_acontecimientos_radio_tv_por_lugar_mes(id_lugar: int, fecha_inicio: str, fecha_fin: str) -> pd.DataFrame:
+def conteo_acontecimientos_radio_tv_por_lugar_mes(ids_lugares: List[int], fecha_inicio: str, fecha_fin: str) -> pd.DataFrame:
     """
     Conteo de acontecimientos con coctel para Radio y TV por lugar y mes
     Deduplica por nombre de programa dentro de cada acontecimiento
     
     Args:
-        id_lugar: ID del lugar
+        ids_lugares: Lista de IDs de lugares
         fecha_inicio: Fecha inicio en formato 'YYYY-MM-DD'
         fecha_fin: Fecha fin en formato 'YYYY-MM-DD'
     
@@ -87,7 +87,13 @@ def conteo_acontecimientos_radio_tv_por_lugar_mes(id_lugar: int, fecha_inicio: s
         DataFrame con columnas: lugar, año_mes, fuente, coctel
     """
     
-    query = """
+    if not ids_lugares:
+        return pd.DataFrame()
+    
+    # Crear placeholders para la query IN
+    placeholders = ','.join(['%s'] * len(ids_lugares))
+    
+    query = f"""
     WITH acontecimientos_programas AS (
         SELECT DISTINCT
             a.id as acontecimiento_id,
@@ -99,7 +105,7 @@ def conteo_acontecimientos_radio_tv_por_lugar_mes(id_lugar: int, fecha_inicio: s
         INNER JOIN lugares l ON a.id_lugar = l.id
         INNER JOIN acontecimiento_programa ap ON a.id = ap.id_acontecimiento
         INNER JOIN programas p ON ap.id_programa = p.id
-        WHERE a.id_lugar = %s
+        WHERE a.id_lugar IN ({placeholders})
             AND a.id_nota IS NOT NULL  -- Solo con coctel
             AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date >= %s::date
             AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date <= %s::date
@@ -134,21 +140,24 @@ def conteo_acontecimientos_radio_tv_por_lugar_mes(id_lugar: int, fecha_inicio: s
         ad.id_fuente;
     """
     
+    # Parámetros: ids_lugares + fecha_inicio + fecha_fin
+    params = ids_lugares + [fecha_inicio, fecha_fin]
+    
     try:
-        resultado = ejecutar_query(query, params=[id_lugar, fecha_inicio, fecha_fin])
+        resultado = ejecutar_query(query, params=params)
         return resultado if resultado is not None else pd.DataFrame()
     except Exception as e:
         print(f"Error en conteo_acontecimientos_radio_tv_por_lugar_mes: {e}")
         return pd.DataFrame()
 
 
-def conteo_acontecimientos_redes_por_lugar_mes(id_lugar: int, fecha_inicio: str, fecha_fin: str) -> pd.DataFrame:
+def conteo_acontecimientos_redes_por_lugar_mes(ids_lugares: List[int], fecha_inicio: str, fecha_fin: str) -> pd.DataFrame:
     """
     Conteo de acontecimientos con coctel para Redes por lugar y mes
     Cuenta todos los acontecimientos que tienen facebook posts
     
     Args:
-        id_lugar: ID del lugar
+        ids_lugares: Lista de IDs de lugares
         fecha_inicio: Fecha inicio en formato 'YYYY-MM-DD'
         fecha_fin: Fecha fin en formato 'YYYY-MM-DD'
     
@@ -156,7 +165,13 @@ def conteo_acontecimientos_redes_por_lugar_mes(id_lugar: int, fecha_inicio: str,
         DataFrame con columnas: lugar, año_mes, fuente, coctel
     """
     
-    query = """
+    if not ids_lugares:
+        return pd.DataFrame()
+    
+    # Crear placeholders para la query IN
+    placeholders = ','.join(['%s'] * len(ids_lugares))
+    
+    query = f"""
     SELECT 
         l.nombre as lugar,
         TO_CHAR(DATE_TRUNC('month', (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')), 'YYYY-MM') as año_mes,
@@ -165,7 +180,7 @@ def conteo_acontecimientos_redes_por_lugar_mes(id_lugar: int, fecha_inicio: str,
     FROM acontecimientos a
     INNER JOIN lugares l ON a.id_lugar = l.id
     INNER JOIN acontecimiento_facebook_post afp ON a.id = afp.id_acontecimiento
-    WHERE a.id_lugar = %s
+    WHERE a.id_lugar IN ({placeholders})
         AND a.id_nota IS NOT NULL  -- Solo con coctel
         AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date >= %s::date
         AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date <= %s::date
@@ -177,15 +192,49 @@ def conteo_acontecimientos_redes_por_lugar_mes(id_lugar: int, fecha_inicio: str,
         año_mes;
     """
     
+    # Parámetros: ids_lugares + fecha_inicio + fecha_fin
+    params = ids_lugares + [fecha_inicio, fecha_fin]
+    
     try:
-        resultado = ejecutar_query(query, params=[id_lugar, fecha_inicio, fecha_fin])
+        resultado = ejecutar_query(query, params=params)
         return resultado if resultado is not None else pd.DataFrame()
     except Exception as e:
         print(f"Error en conteo_acontecimientos_redes_por_lugar_mes: {e}")
         return pd.DataFrame()
 
+def obtener_ids_lugares(nombres_lugares: List[str]) -> List[int]:
+    """
+    Convierte lista de nombres de lugares a lista de IDs
+    """
+    if not nombres_lugares:
+        return []
+    
+    # Crear placeholders para la query IN
+    placeholders = ','.join(['%s'] * len(nombres_lugares))
+    query = f"""
+    SELECT id, nombre 
+    FROM lugares 
+    WHERE nombre IN ({placeholders})
+    ORDER BY nombre;
+    """
+    
+    try:
+        resultado = ejecutar_query(query, params=nombres_lugares)
+        
+        if resultado is None or resultado.empty:
+            print(f"No se encontraron lugares: {nombres_lugares}")
+            return []
+            
+        ids_encontrados = resultado['id'].tolist()
+        print(f"Lugares encontrados: {len(ids_encontrados)} de {len(nombres_lugares)}")
+        return ids_encontrados
+        
+    except Exception as e:
+        print(f"Error al buscar lugares {nombres_lugares}: {e}")
+        return []
 
-def data_section_13_acontecimientos_por_lugar_mes(fecha_inicio: str, fecha_fin: str, lugar: str) -> pd.DataFrame:
+
+def data_section_13_acontecimientos_por_lugar_mes(fecha_inicio: str, fecha_fin: str, lugares: List[str]) -> pd.DataFrame:
     """
     Función principal que combina los conteos de Radio/TV y Redes para acontecimientos con coctel
     por lugar y mes
@@ -193,7 +242,7 @@ def data_section_13_acontecimientos_por_lugar_mes(fecha_inicio: str, fecha_fin: 
     Args:
         fecha_inicio: Fecha inicio en formato 'YYYY-MM-DD' (primer día del mes)
         fecha_fin: Fecha fin en formato 'YYYY-MM-DD' (último día del mes)
-        lugar: Nombre del lugar
+        lugares: Lista de nombres de lugares
     
     Returns:
         DataFrame con columnas: lugar, año_mes, fuente, coctel
@@ -202,14 +251,14 @@ def data_section_13_acontecimientos_por_lugar_mes(fecha_inicio: str, fecha_fin: 
     print(f"DEBUG: Parámetros recibidos:")
     print(f"  fecha_inicio: {fecha_inicio}")
     print(f"  fecha_fin: {fecha_fin}")
-    print(f"  lugar: {lugar}")
+    print(f"  lugares: {lugares}")
     
-    # Convertir nombre de lugar a ID
-    id_lugar = obtener_id_lugar(lugar)
-    print(f"DEBUG: ID lugar obtenido: {id_lugar}")
+    # Convertir nombres de lugares a IDs
+    ids_lugares = obtener_ids_lugares(lugares)
+    print(f"DEBUG: IDs lugares obtenidos: {ids_lugares}")
     
-    if id_lugar is None:
-        print(f"ERROR: No se encontró ID para el lugar: {lugar}")
+    if not ids_lugares:
+        print(f"ERROR: No se encontraron IDs para los lugares: {lugares}")
         return pd.DataFrame()
     
     resultado_final = pd.DataFrame()
@@ -217,14 +266,14 @@ def data_section_13_acontecimientos_por_lugar_mes(fecha_inicio: str, fecha_fin: 
     try:
         # Obtener datos de Radio/TV
         print(f"DEBUG: Consultando Radio/TV...")
-        resultado_radio_tv = conteo_acontecimientos_radio_tv_por_lugar_mes(id_lugar, fecha_inicio, fecha_fin)
+        resultado_radio_tv = conteo_acontecimientos_radio_tv_por_lugar_mes(ids_lugares, fecha_inicio, fecha_fin)
         print(f"DEBUG: Resultado Radio/TV: {len(resultado_radio_tv)} filas")
         if not resultado_radio_tv.empty:
             resultado_final = pd.concat([resultado_final, resultado_radio_tv], ignore_index=True)
         
         # Obtener datos de Redes
         print(f"DEBUG: Consultando Redes...")
-        resultado_redes = conteo_acontecimientos_redes_por_lugar_mes(id_lugar, fecha_inicio, fecha_fin)
+        resultado_redes = conteo_acontecimientos_redes_por_lugar_mes(ids_lugares, fecha_inicio, fecha_fin)
         print(f"DEBUG: Resultado Redes: {len(resultado_redes)} filas")
         if not resultado_redes.empty:
             resultado_final = pd.concat([resultado_final, resultado_redes], ignore_index=True)
@@ -242,4 +291,4 @@ def data_section_13_acontecimientos_por_lugar_mes(fecha_inicio: str, fecha_fin: 
 
 
 # Ejemplo de uso:
-# resultado = data_section_13_acontecimientos_por_lugar_mes('2024-01-01', '2024-03-31', 'Lima')
+# resultado = data_section_13_acontecimientos_por_lugar_mes('2024-01-01', '2024-03-31', ['Lima', 'Arequipa'])
