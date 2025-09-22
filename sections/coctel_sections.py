@@ -623,7 +623,84 @@ class CoctelSections:
          
      else:
          st.warning("No hay datos para mostrar")
+    
      
+    def section_10_eventos_coctel(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+      """10.- Porcentaje de acontecimientos con coctel"""
+      from sections.functions.grafico10 import data_section_10_eventos_coctel_sql, convertir_a_formato_grafico
+      
+      st.subheader("10.- Porcentaje de acontecimientos con coctel en lugar y fecha específica")
+      
+      fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s10", global_filters)
+      
+      option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s10")
+      option_lugares = self.filter_manager.get_section_locations("s10", global_filters, multi=True)
+      
+      # Usar la nueva función SQL
+      resultado_sql = data_section_10_eventos_coctel_sql(
+          fecha_inicio.strftime('%Y-%m-%d'),
+          fecha_fin.strftime('%Y-%m-%d'),
+          option_lugares
+      )
+      
+      if not resultado_sql.empty:
+          # Filtrar por fuente si no es "Todos"
+          if option_fuente != "Todos":
+              resultado_filtrado = resultado_sql[resultado_sql['fuente'] == option_fuente]
+          else:
+              resultado_filtrado = resultado_sql
+          
+          if not resultado_filtrado.empty:
+              # Convertir a formato para gráfico
+              event_data = convertir_a_formato_grafico(resultado_filtrado)
+              
+              # Si es "Todos", agregar por tipo de coctel (sumar todas las fuentes)
+              if option_fuente == "Todos":
+                  event_data = event_data.groupby('Coctel').agg({
+                      'count': 'sum'
+                  }).reset_index()
+              
+              st.write(f"Porcentaje de acontecimientos con coctel en {', '.join(option_lugares)}")
+              
+              # Crear título dinámico
+              if option_fuente == "Todos":
+                  titulo = 'Porcentaje de acontecimientos con coctel (Todas las fuentes)'
+              else:
+                  titulo = f'Porcentaje de acontecimientos con coctel - {option_fuente}'
+              
+              fig = px.pie(
+                  event_data,
+                  values='count',
+                  names='Coctel',
+                  title=titulo,
+                  hole=0.3,
+                  color='Coctel',
+                  color_discrete_map={'Sin coctel': 'orange', 'Con coctel': 'Blue'}
+              )
+              
+              fig.update_traces(
+                  textposition='inside' if mostrar_todos else 'none',
+                  textinfo='label+percent' if mostrar_todos else 'label'
+              )
+              
+              st.plotly_chart(fig, use_container_width=True)
+              
+              # Mostrar tabla de datos (opcional)
+              '''
+              if mostrar_todos:
+                  st.write("Detalle de datos:")
+                  if option_fuente == "Todos":
+                      st.dataframe(event_data, hide_index=True)
+                  else:
+                      # Mostrar datos detallados por fuente
+                      resultado_detalle = convertir_a_formato_grafico(resultado_filtrado)
+                      st.dataframe(resultado_detalle, hide_index=True)
+              '''        
+          else:
+              st.warning(f"No hay datos para mostrar para la fuente: {option_fuente}")
+      else:
+          st.warning("No hay datos para mostrar")
+    '''
     def section_10_eventos_coctel(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """10.- Porcentaje de acontecimientos con coctel"""
         st.subheader("10.- Porcentaje de acontecimientos con coctel en lugar y fecha específica")
@@ -665,7 +742,7 @@ class CoctelSections:
                 st.warning("No hay datos para mostrar")
         else:
             st.warning("No hay datos para mostrar")
-    
+    '''
     def section_11_cocteles_fuente_lugar(self, global_filters: Dict[str, Any]):
         """11.- Cantidad de cocteles por fuente y lugar"""
         st.subheader("11.- Cantidad de cocteles por fuente y lugar en fecha específica")
