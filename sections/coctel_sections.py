@@ -862,7 +862,15 @@ class CoctelSections:
         else:
             st.warning("No hay datos para mostrar")
     
+    
+
+    # Agregar este import al inicio del archivo coctel_sections.py, junto con los otros imports
+
+
+# Y reemplazar toda la función section_13_conteo_mensual con esto:
+
     def section_13_conteo_mensual(self, global_filters: Dict[str, Any]):
+        from sections.functions.grafico13 import data_section_13_acontecimientos_por_lugar_mes
         """13.- Conteo mensual de la cantidad de coctel utilizado por región"""
         st.subheader("13.- Conteo mensual de la cantidad de coctel utilizado por región, dividido en redes, radio y tv")
         
@@ -881,50 +889,39 @@ class CoctelSections:
         option_lugares = self.filter_manager.get_section_locations("s13", global_filters, multi=True)
         
         # Calcular rango de fechas
-        fecha_inicio = pd.to_datetime(f'{year_inicio}-{month_inicio}-01')
+        fecha_inicio = f'{year_inicio}-{month_inicio:02d}-01'
         fecha_fin = pd.to_datetime(f'{year_fin}-{month_fin}-01') + pd.offsets.MonthEnd(1)
+        fecha_fin_str = fecha_fin.strftime('%Y-%m-%d')
         
-        # Filtrar datos principales
-        temp_data = self.temp_coctel_fuente[
-            (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente['lugar'].isin(option_lugares))
-        ]
+        # Usar la nueva función de grafico13.py
+        resultado = data_section_13_acontecimientos_por_lugar_mes(fecha_inicio, fecha_fin_str, option_lugares)
         
-        # Filtrar datos de Facebook (si existe)
-        temp_data_fb = None
-        if hasattr(self, 'temp_coctel_fuente_fb') and self.temp_coctel_fuente_fb is not None:
-            temp_data_fb = self.temp_coctel_fuente_fb[
-                (self.temp_coctel_fuente_fb['fecha_registro'] >= fecha_inicio) &
-                (self.temp_coctel_fuente_fb['fecha_registro'] <= fecha_fin) &
-                (self.temp_coctel_fuente_fb['lugar'].isin(option_lugares))
-            ]
-        
-        if not temp_data.empty:
-            # Usar el método actualizado
-            by_location, by_month = self.analytics.calculate_monthly_coctel_count(temp_data, temp_data_fb)
+        if not resultado.empty:
+            st.write(f"Conteo mensual de coctel en {len(option_lugares)} regiones entre {month_inicio:02d}/{year_inicio} y {month_fin:02d}/{year_fin}")
             
-            st.write(f"Conteo mensual de coctel en {len(option_lugares)} regiones entre {fecha_inicio.strftime('%m/%Y')} y {fecha_fin.strftime('%m/%Y')}")
-            st.dataframe(by_location, hide_index=True)
+            # Mostrar tabla
+            st.dataframe(resultado, hide_index=True)
+            resultado_agregado = resultado.groupby(['año_mes', 'fuente'])['coctel'].sum().reset_index()
+            # Crear gráfico de barras apiladas
+            color_map = {'RADIO': '#3F6EC3', 'TV': '#A1A1A1', 'REDES': '#C00000'}
             
-            # Gráfico
             fig = px.bar(
-                by_month,
+                resultado_agregado,
                 x='año_mes',
                 y='coctel',
-                color='Fuente',
+                color='fuente',
                 barmode='stack',
                 title='Conteo de cocteles por mes y fuente',
-                labels={'año_mes': 'Año y Mes', 'coctel': 'Número de Cocteles', 'Fuente': 'Fuente'},
+                labels={'año_mes': 'Año y Mes', 'coctel': 'Número de Cocteles', 'fuente': 'Fuente'},
                 text='coctel',
-                color_discrete_map=FUENTE_COLORS,
+                color_discrete_map=color_map,
             )
             
+            fig.update_traces(textposition="inside")
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No hay datos para mostrar")
-
-
+     
     # 3. Verificar que tienes el dataset FB en tu clase principal
     def verify_facebook_dataset(self):
         """Verificar si el dataset de Facebook está disponible"""
@@ -1557,7 +1554,7 @@ class CoctelSections:
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No hay datos para mostrar")
-    
+    '''
     def section_23_evolucion_mensual(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """23.- Gráfico Mensual Lineal sobre la evolución de Radio, Redes y TV"""
         st.subheader("23.- Gráfico Mensual Lineal sobre la evolución de Radio, Redes y TV")
@@ -1601,7 +1598,86 @@ class CoctelSections:
                 st.warning("No hay datos para mostrar")
         else:
             st.warning("No hay datos para mostrar")
-    
+    '''
+    def section_23_evolucion_mensual(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+       """23.- Gráfico Mensual Lineal sobre la evolución de Radio, Redes y TV"""
+       from sections.functions.grafico23 import data_section_23_evolucion_mensual_sql, data_section_23_add_total_line
+       
+       st.subheader("23.- Gráfico Mensual Lineal sobre la evolución de Radio, Redes y TV")
+       
+       # Selector de fechas por año/mes (IGUAL que gráfico 13)
+       from datetime import datetime
+       ano_actual = datetime.now().year
+       anos = list(range(ano_actual - 9, ano_actual + 1))
+       
+       col1, col2 = st.columns(2)
+       with col1:
+           year_inicio = st.selectbox("Año de inicio", anos, len(anos)-1, key="year_inicio_s23")
+           month_inicio = st.selectbox("Mes de inicio", list(range(1,13)), index=0, key="month_inicio_s23")
+       with col2:
+           year_fin = st.selectbox("Año de fin", anos, index=len(anos)-1, key="year_fin_s23")
+           month_fin = st.selectbox("Mes de fin", list(range(1,13)), index=11, key="month_fin_s23")
+       
+       option_lugares = self.filter_manager.get_section_locations("s23", global_filters, multi=True)
+       
+       # Calcular rango de fechas (IGUAL que gráfico 13)
+       fecha_inicio = pd.to_datetime(f'{year_inicio}-{month_inicio}-01')
+       fecha_fin = pd.to_datetime(f'{year_fin}-{month_fin}-01') + pd.offsets.MonthEnd(1)
+       
+       # Usar la función SQL directa (como los otros gráficos)
+       resultado_sql = data_section_23_evolucion_mensual_sql(
+           fecha_inicio.strftime('%Y-%m-%d'),
+           fecha_fin.strftime('%Y-%m-%d'),
+           option_lugares
+       )
+       
+       if not resultado_sql.empty:
+           # Agregar línea Total
+           combined_data = data_section_23_add_total_line(resultado_sql)
+           
+           if not combined_data.empty:
+               # Crear el gráfico de LÍNEAS 
+               fig = px.line(
+                   combined_data,
+                   x='año_mes',
+                   y='coctel',
+                   color='fuente',
+                   markers=True,
+                   color_discrete_map={
+                       'Radio': 'gray', 
+                       'Redes': 'red', 
+                       'TV': 'blue', 
+                       'Total': 'green'
+                   },
+                   title="Gráfico Mensual Lineal sobre la evolución de Radio, Redes y TV",
+                   labels={
+                       'año_mes': 'Año y Mes',
+                       'coctel': 'Número de Cocteles',
+                       'fuente': 'Fuente'
+                   },
+                   text=combined_data["coctel"].map(str) if mostrar_todos else None
+               )
+               
+               fig.update_traces(textposition="top center")
+               fig.update_layout(
+                   xaxis_title="Año y Mes",
+                   yaxis_title="Número de Cocteles",
+                   xaxis=dict(tickangle=45, showgrid=False),
+                   yaxis=dict(showgrid=True),
+                   font=dict(size=12),
+                   margin=dict(l=50, r=50, t=50, b=50)
+               )
+               
+               st.plotly_chart(fig, use_container_width=True)
+               
+               # Mostrar información del rango
+               st.write(f"Evolución mensual de coctel en {len(option_lugares)} regiones entre {fecha_inicio.strftime('%m/%Y')} y {fecha_fin.strftime('%m/%Y')}")
+               st.dataframe(resultado_sql, hide_index=True)
+               
+           else:
+               st.warning("No hay datos para mostrar el gráfico")
+       else:
+           st.warning("No hay datos para mostrar")
     def section_24_mensajes_fuerza(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """24.- Porcentaje de cocteles por mensajes fuerza"""
         st.subheader("24.- Porcentaje de cocteles por mensajes fuerza")
