@@ -2249,6 +2249,7 @@ class CoctelSections:
             st.warning("No hay datos para mostrar")
     
     def section_7_macroregion(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+
         """7.- Crecimiento de cocteles por macroregión"""
         st.subheader("7.- Crecimiento de cocteles por macroregión en lugar y fecha específica")
         
@@ -2301,3 +2302,44 @@ class CoctelSections:
                 st.warning("No hay datos suficientes")
         else:
             st.warning("No hay datos para mostrar")
+
+
+    def render_single_section(self, section_code: str, global_filters: Dict[str, Any], mostrar_todos: bool = True):
+        """Renderizar una sección específica basada en su código"""
+        
+        # Mapeo de códigos a métodos
+        section_map = {
+            "sn": lambda: self.section_sn_proporcion_basica(global_filters, mostrar_todos),
+            "1": lambda: self.section_1_proporcion_combinada(global_filters, mostrar_todos),
+            "2": lambda: self.section_2_posicion_por_fuente(global_filters, mostrar_todos),
+            "3": lambda: self.section_3_tendencia_semanal(global_filters, mostrar_todos),
+            "4": lambda: self.section_4_favor_vs_contra(global_filters, mostrar_todos),
+            "5": lambda: self.section_5_grafico_acumulativo(global_filters, mostrar_todos),
+            "top3": lambda: self.section_top3_mejores_lugares(global_filters, mostrar_todos),
+            "6": lambda: self.section_6_top_medios(global_filters, mostrar_todos),
+            "7": lambda: self.section_7_macroregion(global_filters, mostrar_todos),
+            "8": lambda: self.section_8_conteo_posiciones(global_filters, mostrar_todos),
+            "9": lambda: self.section_9_distribucion_posiciones(global_filters, mostrar_todos),
+            "10": lambda: self.section_10_eventos_coctel(global_filters, mostrar_todos),
+            "11": lambda: self.section_11_cocteles_fuente_lugar(global_filters),
+            "12": lambda: self.section_12_medios_generan_coctel(global_filters),
+            "13": lambda: self.section_13_conteo_mensual(global_filters),
+            "14": lambda: self.section_14_notas_favor_contra(global_filters, mostrar_todos),
+            "15": lambda: self.section_15_proporcion_mensajes(global_filters),
+            "16": lambda: self.section_16_mensajes_por_tema(global_filters),
+            "17": lambda: self.section_17_proporcion_por_tema(global_filters, mostrar_todos),
+            "18": lambda: self.section_18_tendencia_por_medio(global_filters),
+            "19": lambda: self.section_19_notas_tiempo_posicion(global_filters),
+            "20": lambda: self.section_20_actores_posiciones(global_filters),
+            "21": lambda: self.section_21_porcentaje_medios(global_filters, mostrar_todos),
+            "22": lambda: self.section_22_ultimos_3_meses(global_filters, mostrar_todos),
+            "23": lambda: self.section_23_evolucion_mensual(global_filters, mostrar_todos),
+            "24": lambda: self.section_24_mensajes_fuerza(global_filters, mostrar_todos),
+            "25": lambda: self.section_25_impactos_programa(global_filters),
+        }
+        
+        # Ejecutar la sección seleccionada
+        if section_code in section_map:
+            section_map[section_code]()
+        else:
+            st.error(f"❌ Sección '{section_code}' no encontrada")        

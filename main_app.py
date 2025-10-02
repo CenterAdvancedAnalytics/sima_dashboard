@@ -143,67 +143,194 @@ class DashboardApp:
         - 21-24: Análisis comparativo
         - 25-26: Reportes especializados
         """)
-        
-    
+
     def run_coctel_dashboard(self):
-        """Ejecutar dashboard completo de cocteles con todas las secciones"""
+        """Ejecutar dashboard de cocteles con selector de secciones"""
+        st.header("🍸 Análisis de Cocteles")
+        
         # Cargar datos
-        with st.spinner("Cargando datos de cocteles..."):
+        with st.spinner("Cargando datos..."):
             data_tuple = self.data_loader.load_coctel_data()
             
         # Configurar filtros
         lugares_uniques = data_tuple[7]  # lugares_uniques está en la posición 7
-        filter_manager = FilterManager(lugares_uniques)
+        
+        # FIX: Convertir lugares_uniques a lista si es DataFrame o Series
+        if isinstance(lugares_uniques, pd.DataFrame):
+            lugares_list = lugares_uniques.iloc[:, 0].unique().tolist()
+        elif isinstance(lugares_uniques, pd.Series):
+            lugares_list = lugares_uniques.unique().tolist()
+        else:
+            lugares_list = list(lugares_uniques) if hasattr(lugares_uniques, '__iter__') else []
+        
+        # Crear FilterManager con la lista limpia
+        filter_manager = FilterManager(lugares_list)
         
         # Establecer límites de fechas basados en los datos
         temp_coctel_fuente = data_tuple[2]
         min_date = temp_coctel_fuente['fecha_registro'].min().date()
         max_date = temp_coctel_fuente['fecha_registro'].max().date()
         filter_manager.set_date_bounds(min_date, max_date)
-
-                
+        
         # Crear filtros globales
         global_filters = filter_manager.create_global_filters()
         if global_filters is None:
             st.stop()
-            
-        # Aplicar filtros globales a los datos
-        filtered_data = self.apply_filters_to_data(temp_coctel_fuente, global_filters)
-        
-        # Mostrar resumen de datos
-        self.show_data_summary(filtered_data)
-        
-        # Mostrar navegación de secciones
-        self.show_section_navigation()
         
         # Crear secciones
         sections = CoctelSections(data_tuple, filter_manager)
         
-        # Título principal y descripción
-        st.header("🍸 Análisis Completo de Cocteles")
-                
-        # Instrucciones de uso
+        # ============================================
+        # SELECTOR DE SECCIÓN EN EL HEADER
+        # ============================================
+        st.markdown("### 📊 Seleccionar Análisis")
+        
+        # Diccionario de secciones disponibles
+        secciones_disponibles = {
+            "📋 Ver Todas las Secciones (Scroll)": "all",
+            "SN. Proporción de cocteles en lugar y fecha específica": "sn",
+            "1. Proporción de cocteles en lugar, fuentes y fechas específicas": "1",
+            "2. Posición por fuente en lugar y fecha específica": "2",
+            "3. Gráfico semanal por porcentaje de cocteles": "3",
+            "4. Tendencia A Favor vs En Contra": "4",
+            "5. Gráfico Acumulativo": "5",
+            "TOP 3. Mejores lugares": "top3",
+            "6. Top 3 mejores radios, redes, tv": "6",
+            "7. Crecimiento por Macroregión": "7",
+            "8. Gráfico de barras contando posiciones": "8",
+            "9. Gráfico de dona - porcentaje de posiciones": "9",
+            "10. Porcentaje de acontecimientos con coctel": "10",
+            "11. Cantidad de cocteles por fuente y lugar": "11",
+            "12. Medios que Generan Coctel": "12",
+            "13. Conteo mensual de coctel utilizado": "13",
+            "14. Notas A Favor, Neutral, En Contra": "14",
+            "15. Proporción de Mensajes por Posición": "15",
+            "16. Mensajes por Tema": "16",
+            "17. Proporción por Tema": "17",
+            "18. Tendencia por medio": "18",
+            "19. Notas por Tiempo y Posición": "19",
+            "20. Actores y Posiciones": "20",
+            "21. Porcentaje de cóctel por medios": "21",
+            "22. Últimos 3 Meses": "22",
+            "23. Evolución mensual (Radio, Redes, TV)": "23",
+            "24. Mensajes Fuerza": "24",
+            "25. Impactos por programa": "25",
+        }
+        
+        # Selectbox para elegir la sección
+        seccion_seleccionada = st.selectbox(
+            "Elige el análisis que deseas visualizar:",
+            options=list(secciones_disponibles.keys()),
+            index=1,
+            key="selector_seccion"
+        )
+        
+        # Obtener código de la sección
+        codigo_seccion = secciones_disponibles[seccion_seleccionada]
+        
+        # Checkbox global para mostrar valores (solo si no es "all")
+        if codigo_seccion != "all":
+            mostrar_todos = st.checkbox(
+                "Mostrar todos los porcentajes en gráficos", 
+                value=True, 
+                key="global_mostrar"
+            )
+        else:
+            mostrar_todos = True
+        
+        # Información de ayuda (colapsable)
         with st.expander("💡 Cómo usar el dashboard"):
             st.markdown("""
-            **🎯 Filtros Globales (Recomendado):**
+            **🔍 Filtros Globales:**
             1. En el sidebar, activa "Usar fechas globales"
             2. Selecciona el rango de fechas deseado
             3. Activa "Usar ubicaciones globales" 
             4. Selecciona las ubicaciones de interés
-            5. ¡Los filtros se aplicarán automáticamente a TODAS las secciones que puedan aplicar!
+            5. ¡Los filtros se aplicarán automáticamente!
             
-            **📊 Navegación:**
-            - **Scroll down**: Para ver todas las secciones en orden
-            - **Checkbox global**: "Mostrar todos los porcentajes" afecta los gráficos
-            - **Filtros específicos**: Desactiva los globales para control por sección
+            **📊 Selección de Análisis:**
+            - Usa el selector arriba para elegir un análisis específico
+            - O selecciona "Ver Todas las Secciones" para scroll continuo (más lento)
+            
+            **⚡ Consejo de Rendimiento:**
+            - Seleccionar análisis individuales carga **mucho más rápido**
+            - "Ver Todas" puede tomar varios segundos en cargar 25+ gráficos
             """)
         
         st.markdown("---")
         
-        # Renderizar TODAS las secciones en orden secuencial
-        sections.render_all_sections(global_filters)
+        # ============================================
+        # RENDERIZAR SECCIÓN SELECCIONADA
+        # ============================================
+        
+        if codigo_seccion == "all":
+            # Renderizar todas las secciones (comportamiento original)
+            with st.spinner("⏳ Cargando todas las secciones... esto puede tomar un momento"):
+                sections.render_all_sections(global_filters)
+        else:
+            # Renderizar solo la sección seleccionada (¡MUCHO MÁS RÁPIDO!)
+            sections.render_single_section(codigo_seccion, global_filters, mostrar_todos)    
+        
 
-    
+    #def run_coctel_dashboard(self):
+    #    """Ejecutar dashboard completo de cocteles con todas las secciones"""
+    #    # Cargar datos
+    #    with st.spinner("Cargando datos de cocteles..."):
+    #        data_tuple = self.data_loader.load_coctel_data()
+    #        
+    #    # Configurar filtros
+    #    lugares_uniques = data_tuple[7]  # lugares_uniques está en la posición 7
+    #    filter_manager = FilterManager(lugares_uniques)
+    #    
+    #    # Establecer límites de fechas basados en los datos
+    #    temp_coctel_fuente = data_tuple[2]
+    #    min_date = temp_coctel_fuente['fecha_registro'].min().date()
+    #    max_date = temp_coctel_fuente['fecha_registro'].max().date()
+    #    filter_manager.set_date_bounds(min_date, max_date)
+#
+    #            
+    #    # Crear filtros globales
+    #    global_filters = filter_manager.create_global_filters()
+    #    if global_filters is None:
+    #        st.stop()
+    #        
+    #    # Aplicar filtros globales a los datos
+    #    filtered_data = self.apply_filters_to_data(temp_coctel_fuente, global_filters)
+    #    
+    #    # Mostrar resumen de datos
+    #    self.show_data_summary(filtered_data)
+    #    
+    #    # Mostrar navegación de secciones
+    #    self.show_section_navigation()
+    #    
+    #    # Crear secciones
+    #    sections = CoctelSections(data_tuple, filter_manager)
+    #    
+    #    # Título principal y descripción
+    #    st.header("🍸 Análisis Completo de Cocteles")
+    #            
+    #    # Instrucciones de uso
+    #    with st.expander("💡 Cómo usar el dashboard"):
+    #        st.markdown("""
+    #        **🎯 Filtros Globales (Recomendado):**
+    #        1. En el sidebar, activa "Usar fechas globales"
+    #        2. Selecciona el rango de fechas deseado
+    #        3. Activa "Usar ubicaciones globales" 
+    #        4. Selecciona las ubicaciones de interés
+    #        5. ¡Los filtros se aplicarán automáticamente a TODAS las secciones que puedan aplicar!
+    #        
+    #        **📊 Navegación:**
+    #        - **Scroll down**: Para ver todas las secciones en orden
+    #        - **Checkbox global**: "Mostrar todos los porcentajes" afecta los gráficos
+    #        - **Filtros específicos**: Desactiva los globales para control por sección
+    #        """)
+    #    
+    #    st.markdown("---")
+    #    
+    #    # Renderizar TODAS las secciones en orden secuencial
+    #    sections.render_all_sections(global_filters)
+#
+    #
     def run_users_dashboard(self):
         """Ejecutar dashboard de usuarios"""
         st.header("👥 Usuarios y Acontecimientos")
