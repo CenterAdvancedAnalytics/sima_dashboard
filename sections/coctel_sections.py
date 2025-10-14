@@ -1901,44 +1901,124 @@ class CoctelSections:
         else:
             st.warning("No hay datos para la selección actual.")
         
-    
     def section_2_posicion_por_fuente(self, global_filters: Dict[str, Any], mostrar_todos: bool):
-        """2.- Posición por fuente en lugar y fecha específica"""
-        st.subheader("2.- Posición por fuente en lugar y fecha específica")
-        
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s2", global_filters)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            option_coctel = st.selectbox(
-                "Notas", ("Coctel noticias", "Otras fuentes", "Todas"), key="coctel_s2"
-            )
-        with col2:
-            # Local location selector - independent of global filters
-            available_locations = self.temp_coctel_fuente['lugar'].dropna().unique()
-            option_lugar = st.selectbox(
-                "Lugar", 
-                options=sorted(available_locations), 
-                key="lugar_s2"
-            )
-        
-        temp_data = self.temp_coctel_fuente[
-            (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente['lugar'] == option_lugar)
-        ]
-        
-        st.write(f"Posición por {option_coctel} en {option_lugar} entre {fecha_inicio.strftime('%d.%m.%Y')} y {fecha_fin.strftime('%d.%m.%Y')}")
-        
-        if not temp_data.empty:
-            result = self.analytics.calculate_position_by_source(temp_data, option_coctel)
-            if not result.empty:
-                st.dataframe(result, hide_index=True)
-            else:
-                st.warning("No hay datos para mostrar")
-        else:
-            st.warning("No hay datos para mostrar")
-    
+       """2.- Posición por fuente en lugar y fecha específica - con tabla y porcentajes"""
+       from sections.functions.grafico2 import (
+           data_section_2_posiciones_coctel_sql, 
+           preparar_datos_para_grafico
+       )
+       
+       st.subheader("2.- Posición por fuente en lugar y fecha específica")
+       
+       fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s2", global_filters)
+       
+       col1, col2 = st.columns(2)
+       with col1:
+           option_coctel = st.selectbox(
+               "Notas", ("Con coctel", "Sin coctel", "Todas"), key="coctel_s2"
+           )
+       with col2:
+           available_locations = self.lugares_uniques
+           option_lugar = st.selectbox(
+               "Lugar", 
+               options=sorted(available_locations), 
+               key="lugar_s2"
+           )
+       
+       st.write(f"Posición por fuente en {option_lugar} entre {fecha_inicio.strftime('%d.%m.%Y')} y {fecha_fin.strftime('%d.%m.%Y')}")
+       
+       # Obtener datos usando las funciones SQL de grafico2.py
+       df_radio, df_tv, df_redes = data_section_2_posiciones_coctel_sql(
+           fecha_inicio.strftime('%Y-%m-%d'),
+           fecha_fin.strftime('%Y-%m-%d'),
+           option_lugar
+       )
+       
+       # Preparar datos combinados
+       df_combinado = preparar_datos_para_grafico(df_radio, df_tv, df_redes)
+       
+       if not df_combinado.empty:
+           # Filtrar por tipo de coctel si no es "Todas"
+           if option_coctel == "Con coctel":
+               df_filtrado = df_combinado[df_combinado['Tipo_Coctel'] == 'Con coctel'].copy()
+           elif option_coctel == "Sin coctel":
+               df_filtrado = df_combinado[df_combinado['Tipo_Coctel'] == 'Sin coctel'].copy()
+           else:  # "Todas"
+               # Agrupar sumando con coctel y sin coctel
+               df_filtrado = df_combinado.groupby(['Posición', 'Medio'], as_index=False)['Cantidad'].sum()
+           
+           if not df_filtrado.empty:
+               # Calcular porcentajes por Medio
+               df_filtrado['Total_Medio'] = df_filtrado.groupby('Medio')['Cantidad'].transform('sum')
+               df_filtrado['Porcentaje'] = (df_filtrado['Cantidad'] / df_filtrado['Total_Medio'] * 100).round(0).astype(int)
+               df_filtrado['Porcentaje'] = df_filtrado['Porcentaje'].astype(str) + '%'
+               
+               # Mapeo de colores por posición
+               color_map = {
+                  'A favor': 'Azul',
+                  'Potencialmente a favor': 'Celeste',
+                  'Neutral': 'Gris',
+                  'Potencialmente en contra': 'Naranja',
+                  'En contra': 'Rojo'
+              }
+               
+               # Si la posición contiene "Potencialmente", separar
+               df_filtrado['Color'] = df_filtrado['Posición'].map(color_map)
+               
+               # Preparar para mostrar
+               df_display = df_filtrado[['Medio', 'Posición', 'Color', 'Cantidad', 'Porcentaje']].copy()
+               df_display.columns = ['Medio', 'Posicion', 'Color', 'Cantidad', 'Porcentaje']
+               
+               # Ordenar por Medio y luego por orden de posiciones
+               posicion_orden = ['A favor', 'Potencialmente', 'Neutral', 'En contra']
+               df_display['orden'] = df_display['Posicion'].apply(
+                   lambda x: next((i for i, p in enumerate(posicion_orden) if p in x), 999)
+               )
+               df_display = df_display.sort_values(['Medio', 'orden']).drop('orden', axis=1)
+               
+               # Mostrar tabla
+               st.dataframe(df_display, hide_index=True, width=600)
+           else:
+               st.warning("No hay datos para la selección actual")
+       else:
+           st.warning("No hay datos para mostrar")
+#    def section_2_posicion_por_fuente(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+#        """2.- Posición por fuente en lugar y fecha específica"""
+#        st.subheader("2.- Posición por fuente en lugar y fecha específica")
+#        
+#        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s2", global_filters)
+#        
+#        col1, col2 = st.columns(2)
+#        with col1:
+#            option_coctel = st.selectbox(
+#                "Notas", ("Coctel noticias", "Otras fuentes", "Todas"), key="coctel_s2"
+#            )
+#        with col2:
+#            # Local location selector - independent of global filters
+#            available_locations = self.temp_coctel_fuente['lugar'].dropna().unique()
+#            option_lugar = st.selectbox(
+#                "Lugar", 
+#                options=sorted(available_locations), 
+#                key="lugar_s2"
+#            )
+#        
+#        temp_data = self.temp_coctel_fuente[
+#            (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
+#            (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
+#            (self.temp_coctel_fuente['lugar'] == option_lugar)
+#        ]
+#        
+#        st.write(f"Posición por {option_coctel} en {option_lugar} entre {fecha_inicio.strftime('%d.%m.%Y')} y {fecha_fin.strftime('%d.%m.%Y')}")
+#        
+#        if not temp_data.empty:
+#            result = self.analytics.calculate_position_by_source(temp_data, option_coctel)
+#            if not result.empty:
+#                st.dataframe(result, hide_index=True)
+#            else:
+#                st.warning("No hay datos para mostrar")
+#        else:
+#            st.warning("No hay datos para mostrar")
+#    
     def section_3_tendencia_semanal(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """3.- Gráfico semanal por porcentaje de cocteles"""
         st.subheader("3.- Gráfico semanal por porcentaje de cocteles en lugar y fecha específica")

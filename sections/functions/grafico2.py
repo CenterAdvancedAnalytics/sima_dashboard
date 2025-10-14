@@ -9,12 +9,12 @@ def ejecutar_query(query: str, params: Optional[List[Any]] = None) -> Optional[p
     """
     Ejecuta una query SQL y retorna los resultados como un DataFrame de pandas.
     """
-    env_path = Path(__file__).parent.parent.parent / '.env'
-    if env_path.exists():
-     from dotenv import load_dotenv
-     load_dotenv(env_path)
-     print(f"✅ .env cargado desde: {env_path}")
-     
+ #   env_path = Path(__file__).parent.parent.parent / '.env'
+ #   if env_path.exists():
+ #    from dotenv import load_dotenv
+ #    load_dotenv(env_path)
+ #    print(f"✅ .env cargado desde: {env_path}")
+ #    
     DB_CONFIG = {
         'host': os.getenv('DB_HOST', 'localhost'),
         'database': os.getenv('DB_NAME', 'tu_base_de_datos'),
@@ -216,9 +216,9 @@ def convertir_posicion_a_nombre(df: pd.DataFrame) -> pd.DataFrame:
     
     id_posicion_dict = {
         1: 'A favor',
-        2: 'Potencialmente',
+        2: 'Potencialmente a favor',
         3: 'Neutral',
-        4: 'Potencialmente',
+        4: 'Potencialmente en contra',
         5: 'En contra'
     }
     
@@ -308,19 +308,19 @@ def posiciones_redes_con_sin_coctel(fecha_inicio: str, fecha_fin: str, lugar: st
         return pd.DataFrame()
 # Ejemplo de uso:
 # Ejemplo de uso:
-if __name__ == "__main__":
-    # Test de las funciones
-    df_radio, df_tv, df_redes = data_section_2_posiciones_coctel_sql('2024-01-01', '2026-12-31', 'Puno')
-    
-    print("\n=== RADIO ===")
-    print(df_radio)
-    
-    print("\n=== TV ===")
-    print(df_tv)
-    
-    print("\n=== REDES ===")
-    print(df_redes)
-    
-    print("\n=== DATOS PREPARADOS PARA GRÁFICO ===")
-    df_combinado = preparar_datos_para_grafico(df_radio, df_tv, df_redes)
-    print(df_combinado)
+#if __name__ == "__main__":
+#    # Test de las funciones
+#    df_radio, df_tv, df_redes = data_section_2_posiciones_coctel_sql('2024-01-01', '2026-12-31', 'Puno')
+#    
+#    print("\n=== RADIO ===")
+#    print(df_radio)
+#    
+#    print("\n=== TV ===")
+#    print(df_tv)
+#    
+#    print("\n=== REDES ===")
+#    print(df_redes)
+#    
+#    print("\n=== DATOS PREPARADOS PARA GRÁFICO ===")
+#    df_combinado = preparar_datos_para_grafico(df_radio, df_tv, df_redes)
+#    print(df_combinado)
