@@ -2684,59 +2684,69 @@ class CoctelSections:
     #        st.warning("No hay datos para mostrar")
     #
     def section_7_macroregion(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+       """7.- Crecimiento de cocteles por macroregión"""
+       from sections.functions.grafico7 import data_section_7_macroregion_sql, calcular_viernes_semana
+       
+       st.subheader("7.- Crecimiento de cocteles por macroregión en lugar y fecha específica")
+       
+       fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s7", global_filters)
+       
+       col1, col2 = st.columns(2)
+       with col1:
+           option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes"), key="fuente_s7")
+       with col2:
+           if option_fuente in ["Radio", "Redes"]:
+               option_macroregion = st.selectbox("Macroregión", MACROREGIONES_RADIO_REDES, key="macro_s7")
+           else:
+               option_macroregion = st.selectbox("Macroregión", MACROREGIONES_TV, key="macro_s7")
+       
+       usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_s7")
+       
+       # Usar la nueva función SQL
+       macro_data = data_section_7_macroregion_sql(
+           fecha_inicio.strftime('%Y-%m-%d'),
+           fecha_fin.strftime('%Y-%m-%d'),
+           option_macroregion,
+           option_fuente
+       )
+       
+       if not macro_data.empty:
+           # Calcular viernes de cada semana
+           macro_data = calcular_viernes_semana(macro_data)
+           
+           # Crear eje X según toggle
+           if usar_fechas_viernes:
+               macro_data["eje_x"] = macro_data["viernes"].dt.strftime("%d-%m-%Y")
+           else:
+               macro_data["eje_x"] = macro_data["viernes"].dt.strftime("%Y-%m") + "-S" + (
+                   (macro_data["viernes"].dt.day - 1) // 7 + 1
+               ).astype(str)
+           
+           # Crear gráfico con múltiples líneas (una por cada lugar de la macroregión)
+           fig = px.line(
+               macro_data,
+               x="eje_x",
+               y="porcentaje",
+               color="lugar",
+               title=f"Crecimiento de cocteles por macroregión en {option_macroregion}",
+               labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes else "Semana", 
+                       "porcentaje": "Porcentaje de cocteles %",
+                       "lugar": "Lugar"},
+               markers=True,
+               text=macro_data["porcentaje"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+           )
+           
+           fig.update_traces(textposition="top center")
+           fig.update_xaxes(tickangle=45)
+           
+           st.plotly_chart(fig, use_container_width=True)
+           st.write("Nota: Los valores muestran el porcentaje de cocteles en cada semana")
+       else:
+           st.warning("No hay datos suficientes")
 
-        """7.- Crecimiento de cocteles por macroregión"""
-        st.subheader("7.- Crecimiento de cocteles por macroregión en lugar y fecha específica")
-        
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s7", global_filters)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes"), key="fuente_s7")
-        with col2:
-            if option_fuente in ["Radio", "Redes"]:
-                option_macroregion = st.selectbox("Macroregión", MACROREGIONES_RADIO_REDES, key="macro_s7")
-            else:
-                option_macroregion = st.selectbox("Macroregión", MACROREGIONES_TV, key="macro_s7")
-        
-        usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_s7")
-        
-        temp_data = self.temp_coctel_fuente[
-            (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin)
-        ]
-        
-        if not temp_data.empty:
-            macro_data = self.analytics.calculate_macroregion_growth(temp_data, option_fuente, option_macroregion)
-            
-            if not macro_data.empty:
-                if usar_fechas_viernes:
-                    macro_data["eje_x"] = macro_data["viernes"].dt.strftime("%d-%m-%Y")
-                else:
-                    macro_data["eje_x"] = macro_data["viernes"].dt.strftime("%Y-%m") + "-S" + (
-                        (macro_data["viernes"].dt.day - 1) // 7 + 1
-                    ).astype(str)
-                
-                fig = px.line(
-                    macro_data,
-                    x="eje_x",
-                    y="coctel_mean",
-                    color="lugar",
-                    title=f"Crecimiento de cocteles por macroregión en {option_macroregion}",
-                    labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes else "Semana", "coctel_mean": "Porcentaje de cocteles %"},
-                    markers=True,
-                    text=macro_data["coctel_mean"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
-                )
-                
-                fig.update_traces(textposition="top center")
-                fig.update_xaxes(tickangle=45)
-                
-                st.plotly_chart(fig, use_container_width=True)
-                st.write("Nota: Los valores muestran el porcentaje de cocteles en cada semana")
-            else:
-                st.warning("No hay datos suficientes")
-        else:
-            st.warning("No hay datos para mostrar")
+
+
+
 
 
     def render_single_section(self, section_code: str, global_filters: Dict[str, Any], mostrar_todos: bool = True):
