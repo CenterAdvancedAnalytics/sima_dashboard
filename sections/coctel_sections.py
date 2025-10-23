@@ -2382,7 +2382,7 @@ class CoctelSections:
         else:
             st.warning("No hay datos suficientes")
 
-            
+
     #def section_5_grafico_acumulativo(self, global_filters: Dict[str, Any], mostrar_todos: bool):
     #    """5.- Gráfico acumulativo porcentaje de cocteles"""
     #    st.subheader("5.- Gráfico acumulativo porcentaje de cocteles en lugar y fecha específica")
@@ -2441,121 +2441,248 @@ class CoctelSections:
     #    else:
     #        st.warning("No hay datos para mostrar")
     
+
     def section_top3_mejores_lugares(self, global_filters: Dict[str, Any], mostrar_todos: bool):
-        """Top 3 mejores porcentajes de coctel semanal por lugar"""
-        st.subheader("Top 3 mejores porcentajes de coctel semanal por lugar en fuente y fecha específica")
-        
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("stop3", global_filters)
-        
-        option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes"), key="fuente_stop3")
-        usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_stop3")
-        
-        temp_data = self.temp_coctel_fuente[
-            (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin)
-        ]
-        
-        if not temp_data.empty:
-            top_data, top_lugares_list = self.analytics.calculate_top_lugares(temp_data, option_fuente, 3)
-            
-            if not top_data.empty:
-                if usar_fechas_viernes:
-                    top_data["eje_x"] = top_data["viernes"].dt.strftime("%d-%m-%Y")
-                else:
-                    top_data["eje_x"] = top_data["viernes"].dt.strftime("%Y-%m") + "-S" + (
-                        (top_data["viernes"].dt.day - 1) // 7 + 1
-                    ).astype(str)
-                
-                fig = px.line(
-                    top_data,
-                    x="eje_x",
-                    y="coctel",
-                    color="lugar",
-                    title="Top 3 lugares con mayor porcentaje de cocteles",
-                    labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes else "Semana", "coctel": "Porcentaje de cocteles %"},
-                    markers=True,
-                    text=top_data["coctel"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
-                )
-                
-                fig.update_traces(textposition="top center")
-                fig.update_xaxes(tickangle=45)
-                
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Mostrar tabla de top lugares
-                st.write(f"Top 3 lugares con mayor porcentaje de cocteles según {option_fuente}")
-                top_summary = top_data.sort_values("semana").groupby("lugar").last().reset_index()
-                top_summary['coctel'] = top_summary['coctel'].map(lambda x: f"{x:.1f}")
-                st.dataframe(top_summary[["lugar", "coctel"]], hide_index=True)
-            else:
-                st.warning("No hay datos suficientes")
-        else:
-            st.warning("No hay datos para mostrar")
-        
+       """Top 3 mejores porcentajes de coctel semanal por lugar"""
+       from sections.functions.grafico_top3 import data_section_top3_lugares_sql, calcular_viernes_semana
+       
+       st.subheader("Top 3 mejores porcentajes de coctel semanal por lugar en fuente y fecha específica")
+       
+       fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("stop3", global_filters)
+       
+       option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes"), key="fuente_stop3")
+       usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_stop3")
+       
+       # Usar la nueva función SQL que automáticamente selecciona TOP 3
+       top_data, top_lugares_list = data_section_top3_lugares_sql(
+           fecha_inicio.strftime('%Y-%m-%d'),
+           fecha_fin.strftime('%Y-%m-%d'),
+           option_fuente,
+           top_n=3
+       )
+       
+       if not top_data.empty:
+           # Calcular viernes de cada semana
+           top_data = calcular_viernes_semana(top_data)
+           
+           # Crear eje X según toggle
+           if usar_fechas_viernes:
+               top_data["eje_x"] = top_data["viernes"].dt.strftime("%d-%m-%Y")
+           else:
+               top_data["eje_x"] = top_data["viernes"].dt.strftime("%Y-%m") + "-S" + (
+                   (top_data["viernes"].dt.day - 1) // 7 + 1
+               ).astype(str)
+           
+           # Crear gráfico con las 3 líneas (top 3 lugares)
+           fig = px.line(
+               top_data,
+               x="eje_x",
+               y="porcentaje",
+               color="lugar",
+               title="Top 3 lugares con mayor porcentaje de cocteles",
+               labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes else "Semana", 
+                       "porcentaje": "Porcentaje de cocteles %",
+                       "lugar": "Lugar"},
+               markers=True,
+               text=top_data["porcentaje"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+           )
+           
+           fig.update_traces(textposition="top center")
+           fig.update_xaxes(tickangle=45)
+           
+           st.plotly_chart(fig, use_container_width=True)
+           
+           # Mostrar tabla de top 3 lugares
+           st.write(f"Top 3 lugares con mayor porcentaje de cocteles según {option_fuente}")
+           top_summary = top_data.sort_values("semana").groupby("lugar").last().reset_index()
+           top_summary['porcentaje'] = top_summary['porcentaje'].map(lambda x: f"{x:.1f}")
+           st.dataframe(top_summary[["lugar", "porcentaje"]], hide_index=True)
+       else:
+           st.warning("No hay datos suficientes")
+           
+    #def section_top3_mejores_lugares(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+    #    """Top 3 mejores porcentajes de coctel semanal por lugar"""
+    #    st.subheader("Top 3 mejores porcentajes de coctel semanal por lugar en fuente y fecha específica")
+    #    
+    #    fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("stop3", global_filters)
+    #    
+    #    option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes"), key="fuente_stop3")
+    #    usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_stop3")
+    #    
+    #    temp_data = self.temp_coctel_fuente[
+    #        (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin)
+    #    ]
+    #    
+    #    if not temp_data.empty:
+    #        top_data, top_lugares_list = self.analytics.calculate_top_lugares(temp_data, option_fuente, 3)
+    #        
+    #        if not top_data.empty:
+    #            if usar_fechas_viernes:
+    #                top_data["eje_x"] = top_data["viernes"].dt.strftime("%d-%m-%Y")
+    #            else:
+    #                top_data["eje_x"] = top_data["viernes"].dt.strftime("%Y-%m") + "-S" + (
+    #                    (top_data["viernes"].dt.day - 1) // 7 + 1
+    #                ).astype(str)
+    #            
+    #            fig = px.line(
+    #                top_data,
+    #                x="eje_x",
+    #                y="coctel",
+    #                color="lugar",
+    #                title="Top 3 lugares con mayor porcentaje de cocteles",
+    #                labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes else "Semana", "coctel": "Porcentaje de cocteles %"},
+    #                markers=True,
+    #                text=top_data["coctel"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+    #            )
+    #            
+    #            fig.update_traces(textposition="top center")
+    #            fig.update_xaxes(tickangle=45)
+    #            
+    #            st.plotly_chart(fig, use_container_width=True)
+    #            
+    #            # Mostrar tabla de top lugares
+    #            st.write(f"Top 3 lugares con mayor porcentaje de cocteles según {option_fuente}")
+    #            top_summary = top_data.sort_values("semana").groupby("lugar").last().reset_index()
+    #            top_summary['coctel'] = top_summary['coctel'].map(lambda x: f"{x:.1f}")
+    #            st.dataframe(top_summary[["lugar", "coctel"]], hide_index=True)
+    #        else:
+    #            st.warning("No hay datos suficientes")
+    #    else:
+    #        st.warning("No hay datos para mostrar")
+
     def section_6_top_medios(self, global_filters: Dict[str, Any], mostrar_todos: bool):
-        """6.- Top 3 mejores radios, redes, tv"""
-        st.subheader("6.- Top 3 mejores radios, redes, tv en lugar y fecha específica")
-        
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s6", global_filters)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes"), key="fuente_s6")
-        with col2:
-            # Local location selector - independent of global filters
-            # Get available locations from both dataframes
-            available_locations_programas = self.temp_coctel_fuente_programas['lugar'].dropna().unique()
-            available_locations_fb = self.temp_coctel_fuente_fb['lugar'].dropna().unique()
-            all_locations = sorted(set(list(available_locations_programas) + list(available_locations_fb)))
-            
-            option_lugar = st.selectbox(
-                "Lugar", 
-                options=all_locations, 
-                key="lugar_s6"
-            )
-        
-        usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_s6")
-        
-        temp_programas = self.temp_coctel_fuente_programas[
-            (self.temp_coctel_fuente_programas['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente_programas['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente_programas['lugar'] == option_lugar)
-        ]
-        
-        temp_fb = self.temp_coctel_fuente_fb[
-            (self.temp_coctel_fuente_fb['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente_fb['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente_fb['lugar'] == option_lugar)
-        ]
-        
-        top_data = self.analytics.calculate_top_medios(temp_programas, temp_fb, option_fuente, 3)
-        
-        if not top_data.empty:
-            if usar_fechas_viernes:
-                top_data["eje_x"] = top_data["viernes"].dt.strftime("%d-%m-%Y")
-            else:
-                top_data["eje_x"] = top_data["viernes"].dt.strftime("%Y-%m") + "-S" + (
-                    (top_data["viernes"].dt.day - 1) // 7 + 1
-                ).astype(str)
-            
-            fig = px.line(
-                top_data,
-                x="eje_x",
-                y="coctel",
-                color="nombre_medio",
-                title=f"Top 3 {option_fuente.lower()} con mayor porcentaje de cocteles",
-                labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes else "Semana", "coctel": "Porcentaje de cocteles %"},
-                markers=True,
-                text=top_data["coctel"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
-            )
-            
-            fig.update_traces(textposition="top center")
-            fig.update_xaxes(tickangle=45)
-            
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("No hay datos para mostrar")
-    
+      """6.- Top 3 mejores radios, redes, tv"""
+      from sections.functions.grafico6 import data_section_6_top_medios_sql, calcular_viernes_semana
+      
+      st.subheader("6.- Top 3 mejores radios, redes, tv en lugar y fecha específica")
+      
+      fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s6", global_filters)
+      
+      col1, col2 = st.columns(2)
+      with col1:
+          option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes"), key="fuente_s6")
+      with col2:
+          # Local location selector - independent of global filters
+          # Get available locations from both dataframes
+          available_locations_programas = self.temp_coctel_fuente_programas['lugar'].dropna().unique()
+          available_locations_fb = self.temp_coctel_fuente_fb['lugar'].dropna().unique()
+          all_locations = sorted(set(list(available_locations_programas) + list(available_locations_fb)))
+          
+          option_lugar = st.selectbox(
+              "Lugar", 
+              options=all_locations, 
+              key="lugar_s6"
+          )
+      
+      usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_s6")
+      
+      # Usar la nueva función SQL que automáticamente selecciona TOP 3 medios
+      top_data = data_section_6_top_medios_sql(
+          fecha_inicio.strftime('%Y-%m-%d'),
+          fecha_fin.strftime('%Y-%m-%d'),
+          option_lugar,
+          option_fuente,
+          top_n=3
+      )
+      
+      if not top_data.empty:
+          # Calcular viernes de cada semana
+          top_data = calcular_viernes_semana(top_data)
+          
+          # Crear eje X según toggle
+          if usar_fechas_viernes:
+              top_data["eje_x"] = top_data["viernes"].dt.strftime("%d-%m-%Y")
+          else:
+              top_data["eje_x"] = top_data["viernes"].dt.strftime("%Y-%m") + "-S" + (
+                  (top_data["viernes"].dt.day - 1) // 7 + 1
+              ).astype(str)
+          
+          # Crear gráfico con las 3 líneas (top 3 medios)
+          fig = px.line(
+              top_data,
+              x="eje_x",
+              y="porcentaje",
+              color="nombre_medio",
+              title=f"Top 3 {option_fuente.lower()} con mayor porcentaje de cocteles",
+              labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes else "Semana", 
+                      "porcentaje": "Porcentaje de cocteles %",
+                      "nombre_medio": "Medio"},
+              markers=True,
+              text=top_data["porcentaje"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+          )
+          
+          fig.update_traces(textposition="top center")
+          fig.update_xaxes(tickangle=45)
+          
+          st.plotly_chart(fig, use_container_width=True)
+      else:
+          st.warning("No hay datos para mostrar")
+              
+    #def section_6_top_medios(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+    #    """6.- Top 3 mejores radios, redes, tv"""
+    #    st.subheader("6.- Top 3 mejores radios, redes, tv en lugar y fecha específica")
+    #    
+    #    fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s6", global_filters)
+    #    
+    #    col1, col2 = st.columns(2)
+    #    with col1:
+    #        option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes"), key="fuente_s6")
+    #    with col2:
+    #        # Local location selector - independent of global filters
+    #        # Get available locations from both dataframes
+    #        available_locations_programas = self.temp_coctel_fuente_programas['lugar'].dropna().unique()
+    #        available_locations_fb = self.temp_coctel_fuente_fb['lugar'].dropna().unique()
+    #        all_locations = sorted(set(list(available_locations_programas) + list(available_locations_fb)))
+    #        
+    #        option_lugar = st.selectbox(
+    #            "Lugar", 
+    #            options=all_locations, 
+    #            key="lugar_s6"
+    #        )
+    #    
+    #    usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_s6")
+    #    
+    #    temp_programas = self.temp_coctel_fuente_programas[
+    #        (self.temp_coctel_fuente_programas['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_fuente_programas['fecha_registro'] <= fecha_fin) &
+    #        (self.temp_coctel_fuente_programas['lugar'] == option_lugar)
+    #    ]
+    #    
+    #    temp_fb = self.temp_coctel_fuente_fb[
+    #        (self.temp_coctel_fuente_fb['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_fuente_fb['fecha_registro'] <= fecha_fin) &
+    #        (self.temp_coctel_fuente_fb['lugar'] == option_lugar)
+    #    ]
+    #    
+    #    top_data = self.analytics.calculate_top_medios(temp_programas, temp_fb, option_fuente, 3)
+    #    
+    #    if not top_data.empty:
+    #        if usar_fechas_viernes:
+    #            top_data["eje_x"] = top_data["viernes"].dt.strftime("%d-%m-%Y")
+    #        else:
+    #            top_data["eje_x"] = top_data["viernes"].dt.strftime("%Y-%m") + "-S" + (
+    #                (top_data["viernes"].dt.day - 1) // 7 + 1
+    #            ).astype(str)
+    #        
+    #        fig = px.line(
+    #            top_data,
+    #            x="eje_x",
+    #            y="coctel",
+    #            color="nombre_medio",
+    #            title=f"Top 3 {option_fuente.lower()} con mayor porcentaje de cocteles",
+    #            labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes else "Semana", "coctel": "Porcentaje de cocteles %"},
+    #            markers=True,
+    #            text=top_data["coctel"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+    #        )
+    #        
+    #        fig.update_traces(textposition="top center")
+    #        fig.update_xaxes(tickangle=45)
+    #        
+    #        st.plotly_chart(fig, use_container_width=True)
+    #    else:
+    #        st.warning("No hay datos para mostrar")
+    #
     def section_7_macroregion(self, global_filters: Dict[str, Any], mostrar_todos: bool):
 
         """7.- Crecimiento de cocteles por macroregión"""
