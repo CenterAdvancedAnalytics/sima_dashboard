@@ -2019,8 +2019,14 @@ class CoctelSections:
 #        else:
 #            st.warning("No hay datos para mostrar")
 #    
+
+     # REEMPLAZO PARA section_3_tendencia_semanal en coctel_sections.py
+# Busca la función section_3_tendencia_semanal y reemplázala con esto:
+
     def section_3_tendencia_semanal(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """3.- Gráfico semanal por porcentaje de cocteles"""
+        from sections.functions.grafico3 import data_section_3_tendencia_semanal_sql, calcular_viernes_semana
+        
         st.subheader("3.- Gráfico semanal por porcentaje de cocteles en lugar y fecha específica")
         
         fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s3", global_filters)
@@ -2039,50 +2045,192 @@ class CoctelSections:
         
         usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_s3")
         
-        temp_data = self.temp_coctel_fuente[
-            (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente['lugar'] == option_lugar)
-        ]
+        # Usar la nueva función SQL
+        weekly_data = data_section_3_tendencia_semanal_sql(
+            fecha_inicio.strftime('%Y-%m-%d'),
+            fecha_fin.strftime('%Y-%m-%d'),
+            option_lugar,
+            option_fuente
+        )
         
-        if not temp_data.empty:
-            weekly_data = self.analytics.calculate_weekly_percentage(temp_data, option_fuente)
+        if not weekly_data.empty:
+            # Calcular viernes de cada semana
+            weekly_data = calcular_viernes_semana(weekly_data)
             
-            if not weekly_data.empty:
-                if usar_fechas_viernes:
-                    weekly_data["eje_x"] = weekly_data["viernes"].dt.strftime("%Y-%m-%d")
-                else:
-                    weekly_data["eje_x"] = weekly_data["fecha_registro"].dt.strftime("%Y-%m") + "-S" + (
-                        (weekly_data["fecha_registro"].dt.day - 1) // 7 + 1
-                    ).astype(str)
-                
-                fig = go.Figure()
-                fig.add_trace(
-                    go.Scatter(
-                        x=weekly_data["eje_x"],
-                        y=weekly_data["porcentaje"],
-                        mode="lines+markers+text" if mostrar_todos else "lines+markers",
-                        text=weekly_data["porcentaje"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
-                        textposition="top center",
-                        name="Porcentaje Coctel"
-                    )
-                )
-                
-                fig.update_xaxes(
-                    title_text="Fecha (Viernes)" if usar_fechas_viernes else "Semana",
-                    tickangle=45
-                )
-                fig.update_yaxes(title_text="Porcentaje de cocteles %")
-                fig.update_layout(title=f"Tendencia semanal - {option_fuente} en {option_lugar}")
-                
-                st.plotly_chart(fig, use_container_width=True)
+            # Crear eje X según toggle
+            if usar_fechas_viernes:
+                weekly_data["eje_x"] = weekly_data["viernes"].dt.strftime("%d-%m-%Y")
             else:
-                st.warning("No hay datos suficientes para la tendencia semanal")
+                weekly_data["eje_x"] = weekly_data["viernes"].dt.strftime("%Y-%m") + "-S" + (
+                    (weekly_data["viernes"].dt.day - 1) // 7 + 1
+                ).astype(str)
+            
+            # Crear gráfico
+            fig = go.Figure()
+            fig.add_trace(
+                go.Scatter(
+                    x=weekly_data["eje_x"],
+                    y=weekly_data["porcentaje"],
+                    mode="lines+markers+text" if mostrar_todos else "lines+markers",
+                    text=weekly_data["porcentaje"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+                    textposition="top center",
+                    name="Porcentaje Coctel"
+                )
+            )
+            
+            fig.update_xaxes(
+                title_text="Fecha (Viernes)" if usar_fechas_viernes else "Semana",
+                tickangle=45,
+                tickmode="array" if usar_fechas_viernes else "linear",
+                tickvals=weekly_data["eje_x"] if usar_fechas_viernes else None,
+                ticktext=weekly_data["eje_x"] if usar_fechas_viernes else None,
+            )
+            fig.update_yaxes(title_text="Porcentaje de cocteles %")
+            fig.update_layout(title=f"Tendencia semanal - {option_fuente} en {option_lugar}")
+            
+            st.plotly_chart(fig, use_container_width=True)
         else:
-            st.warning("No hay datos para mostrar")
+            st.warning("No hay datos suficientes para la tendencia semanal") 
+#    def section_3_tendencia_semanal(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+#        """3.- Gráfico semanal por porcentaje de cocteles"""
+#        st.subheader("3.- Gráfico semanal por porcentaje de cocteles en lugar y fecha específica")
+#        
+#        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s3", global_filters)
+#        
+#        col1, col2 = st.columns(2)
+#        with col1:
+#            option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s3")
+#        with col2:
+#            # Local location selector - independent of global filters
+#            available_locations = self.temp_coctel_fuente['lugar'].dropna().unique()
+#            option_lugar = st.selectbox(
+#                "Lugar", 
+#                options=sorted(available_locations), 
+#                key="lugar_s3"
+#            )
+#        
+#        usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_s3")
+#        
+#        temp_data = self.temp_coctel_fuente[
+#            (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
+#            (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
+#            (self.temp_coctel_fuente['lugar'] == option_lugar)
+#        ]
+#        
+#        if not temp_data.empty:
+#            weekly_data = self.analytics.calculate_weekly_percentage(temp_data, option_fuente)
+#            
+#            if not weekly_data.empty:
+#                if usar_fechas_viernes:
+#                    weekly_data["eje_x"] = weekly_data["viernes"].dt.strftime("%Y-%m-%d")
+#                else:
+#                    weekly_data["eje_x"] = weekly_data["fecha_registro"].dt.strftime("%Y-%m") + "-S" + (
+#                        (weekly_data["fecha_registro"].dt.day - 1) // 7 + 1
+#                    ).astype(str)
+#                
+#                fig = go.Figure()
+#                fig.add_trace(
+#                    go.Scatter(
+#                        x=weekly_data["eje_x"],
+#                        y=weekly_data["porcentaje"],
+#                        mode="lines+markers+text" if mostrar_todos else "lines+markers",
+#                        text=weekly_data["porcentaje"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+#                        textposition="top center",
+#                        name="Porcentaje Coctel"
+#                    )
+#                )
+#                
+#                fig.update_xaxes(
+#                    title_text="Fecha (Viernes)" if usar_fechas_viernes else "Semana",
+#                    tickangle=45
+#                )
+#                fig.update_yaxes(title_text="Porcentaje de cocteles %")
+#                fig.update_layout(title=f"Tendencia semanal - {option_fuente} en {option_lugar}")
+#                
+#                st.plotly_chart(fig, use_container_width=True)
+#            else:
+#                st.warning("No hay datos suficientes para la tendencia semanal")
+#        else:
+#            st.warning("No hay datos para mostrar")
+    
+#    def section_4_favor_vs_contra(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+#        """4.- Gráfico semanal de noticias a favor y en contra"""
+#        st.subheader("4.- Gráfico semanal de noticias a favor y en contra en lugar y fecha específica")
+#        
+#        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s4", global_filters)
+#        
+#        col1, col2 = st.columns(2)
+#        with col1:
+#            # Local location selector - independent of global filters
+#            available_locations = self.temp_coctel_fuente_notas['lugar'].dropna().unique()
+#            option_lugar = st.selectbox(
+#                "Lugar", 
+#                options=sorted(available_locations), 
+#                key="lugar_s4"
+#            )
+#        with col2:
+#            option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s4")
+#        
+#        usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_s4")
+#        
+#        temp_data = self.temp_coctel_fuente_notas[
+#            (self.temp_coctel_fuente_notas['fecha_registro'] >= fecha_inicio) &
+#            (self.temp_coctel_fuente_notas['fecha_registro'] <= fecha_fin) &
+#            (self.temp_coctel_fuente_notas['lugar'] == option_lugar)
+#        ]
+#        
+#        if not temp_data.empty:
+#            weekly_data = self.analytics.calculate_weekly_favor_contra(temp_data, option_fuente)
+#            
+#            if not weekly_data.empty:
+#                if usar_fechas_viernes:
+#                    weekly_data["eje_x"] = weekly_data["viernes"].dt.strftime("%d-%m-%Y")
+#                else:
+#                    weekly_data["eje_x"] = weekly_data["fecha_registro"].dt.strftime("%Y-%m") + "-S" + (
+#                        (weekly_data["fecha_registro"].dt.day - 1) // 7 + 1
+#                    ).astype(str)
+#                
+#                fig = go.Figure()
+#                fig.add_trace(
+#                    go.Scatter(
+#                        x=weekly_data["eje_x"],
+#                        y=weekly_data["a_favor"],
+#                        mode="lines+markers+text" if mostrar_todos else "lines+markers",
+#                        name="A favor",
+#                        text=weekly_data["a_favor"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+#                        textposition="top center",
+#                        line=dict(color="blue"),
+#                    )
+#                )
+#                
+#                fig.add_trace(
+#                    go.Scatter(
+#                        x=weekly_data["eje_x"],
+#                        y=weekly_data["en_contra"],
+#                        mode="lines+markers+text" if mostrar_todos else "lines+markers",
+#                        name="En contra",
+#                        text=weekly_data["en_contra"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+#                        textposition="top center",
+#                        line=dict(color="red"),
+#                    )
+#                )
+#                
+#                fig.update_xaxes(
+#                    title_text="Fecha (Viernes)" if usar_fechas_viernes else "Semana",
+#                    tickangle=45
+#                )
+#                fig.update_yaxes(title_text="Porcentaje de noticias %")
+#                
+#                st.plotly_chart(fig, use_container_width=True)
+#            else:
+#                st.warning("No hay datos suficientes")
+#        else:
+#            st.warning("No hay datos para mostrar")
     
     def section_4_favor_vs_contra(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """4.- Gráfico semanal de noticias a favor y en contra"""
+        from sections.functions.grafico4 import data_section_4_favor_vs_contra_sql, calcular_viernes_semana
+        
         st.subheader("4.- Gráfico semanal de noticias a favor y en contra en lugar y fecha específica")
         
         fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s4", global_filters)
@@ -2101,62 +2249,79 @@ class CoctelSections:
         
         usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_s4")
         
-        temp_data = self.temp_coctel_fuente_notas[
-            (self.temp_coctel_fuente_notas['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente_notas['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente_notas['lugar'] == option_lugar)
-        ]
+        # Usar la nueva función SQL
+        weekly_data = data_section_4_favor_vs_contra_sql(
+            fecha_inicio.strftime('%Y-%m-%d'),
+            fecha_fin.strftime('%Y-%m-%d'),
+            option_lugar,
+            option_fuente
+        )
         
-        if not temp_data.empty:
-            weekly_data = self.analytics.calculate_weekly_favor_contra(temp_data, option_fuente)
+        if not weekly_data.empty:
+            # Calcular viernes de cada semana
+            weekly_data = calcular_viernes_semana(weekly_data)
             
-            if not weekly_data.empty:
-                if usar_fechas_viernes:
-                    weekly_data["eje_x"] = weekly_data["viernes"].dt.strftime("%d-%m-%Y")
-                else:
-                    weekly_data["eje_x"] = weekly_data["fecha_registro"].dt.strftime("%Y-%m") + "-S" + (
-                        (weekly_data["fecha_registro"].dt.day - 1) // 7 + 1
-                    ).astype(str)
-                
-                fig = go.Figure()
-                fig.add_trace(
-                    go.Scatter(
-                        x=weekly_data["eje_x"],
-                        y=weekly_data["a_favor"],
-                        mode="lines+markers+text" if mostrar_todos else "lines+markers",
-                        name="A favor",
-                        text=weekly_data["a_favor"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
-                        textposition="top center",
-                        line=dict(color="blue"),
-                    )
-                )
-                
-                fig.add_trace(
-                    go.Scatter(
-                        x=weekly_data["eje_x"],
-                        y=weekly_data["en_contra"],
-                        mode="lines+markers+text" if mostrar_todos else "lines+markers",
-                        name="En contra",
-                        text=weekly_data["en_contra"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
-                        textposition="top center",
-                        line=dict(color="red"),
-                    )
-                )
-                
-                fig.update_xaxes(
-                    title_text="Fecha (Viernes)" if usar_fechas_viernes else "Semana",
-                    tickangle=45
-                )
-                fig.update_yaxes(title_text="Porcentaje de noticias %")
-                
-                st.plotly_chart(fig, use_container_width=True)
+            # Crear eje X según toggle
+            if usar_fechas_viernes:
+                weekly_data["eje_x"] = weekly_data["viernes"].dt.strftime("%d-%m-%Y")
             else:
-                st.warning("No hay datos suficientes")
+                weekly_data["eje_x"] = weekly_data["fecha_registro"].dt.strftime("%Y-%m") + "-S" + (
+                    (weekly_data["fecha_registro"].dt.day - 1) // 7 + 1
+                ).astype(str)
+            
+            # Crear gráfico con 2 líneas
+            fig = go.Figure()
+            
+            # Línea A FAVOR (azul)
+            fig.add_trace(
+                go.Scatter(
+                    x=weekly_data["eje_x"],
+                    y=weekly_data["pct_a_favor"],
+                    mode="lines+markers+text" if mostrar_todos else "lines+markers",
+                    name="A favor",
+                    text=weekly_data["pct_a_favor"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+                    textposition="top center",
+                    line=dict(color="blue")
+                )
+            )
+            
+            # Línea EN CONTRA (roja)
+            fig.add_trace(
+                go.Scatter(
+                    x=weekly_data["eje_x"],
+                    y=weekly_data["pct_en_contra"],
+                    mode="lines+markers+text" if mostrar_todos else "lines+markers",
+                    name="En contra",
+                    text=weekly_data["pct_en_contra"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+                    textposition="top center",
+                    line=dict(color="red")
+                )
+            )
+            
+            fig.update_xaxes(
+                title_text="Fecha (Viernes)" if usar_fechas_viernes else "Semana",
+                tickangle=45,
+                tickmode="array" if usar_fechas_viernes else "linear",
+                tickvals=weekly_data["eje_x"] if usar_fechas_viernes else None,
+                ticktext=weekly_data["eje_x"] if usar_fechas_viernes else None,
+            )
+            fig.update_yaxes(title_text="Porcentaje de notas %")
+            fig.update_layout(
+                title=f"Tendencia semanal A Favor vs En Contra - {option_fuente} en {option_lugar}",
+                hovermode='x unified'
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
         else:
-            st.warning("No hay datos para mostrar")
+            st.warning("No hay datos suficientes para la tendencia semanal")
     
+    
+    # REEMPLAZO PARA section_5_grafico_acumulativo en coctel_sections.py
+
     def section_5_grafico_acumulativo(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """5.- Gráfico acumulativo porcentaje de cocteles"""
+        from sections.functions.grafico5 import data_section_5_acumulativo_lugares_sql, calcular_viernes_semana
+        
         st.subheader("5.- Gráfico acumulativo porcentaje de cocteles en lugar y fecha específica")
         
         fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s5", global_filters)
@@ -2169,49 +2334,112 @@ class CoctelSections:
         
         usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_s5")
         
-        temp_data = self.temp_coctel_fuente[
-            (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente['lugar'].isin(option_lugares))
-        ]
+        # Usar la nueva función SQL
+        cumulative_data = data_section_5_acumulativo_lugares_sql(
+            fecha_inicio.strftime('%Y-%m-%d'),
+            fecha_fin.strftime('%Y-%m-%d'),
+            option_lugares,
+            option_fuente
+        )
         
-        if not temp_data.empty:
-            cumulative_data = self.analytics.calculate_cumulative_percentage(temp_data, option_fuente)
+        if not cumulative_data.empty:
+            # Calcular viernes de cada semana
+            cumulative_data = calcular_viernes_semana(cumulative_data)
             
-            if not cumulative_data.empty:
-                if usar_fechas_viernes:
-                    cumulative_data["eje_x"] = cumulative_data["viernes"].dt.strftime("%d-%m-%Y")
-                else:
-                    cumulative_data["eje_x"] = cumulative_data["viernes"].dt.strftime("%Y-%m") + "-S" + (
-                        (cumulative_data["viernes"].dt.day - 1) // 7 + 1
-                    ).astype(str)
-                
-                fig = px.line(
-                    cumulative_data,
-                    x="eje_x",
-                    y="coctel_mean",
-                    color="lugar",
-                    title="Porcentaje de cocteles por semana %",
-                    labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes else "Semana", "coctel_mean": "Porcentaje de cocteles %"},
-                    markers=True,
-                    text=cumulative_data["coctel_mean"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
-                )
-                
-                fig.update_traces(textposition="top center")
-                fig.update_xaxes(tickangle=45)
-                
-                st.plotly_chart(fig, use_container_width=True)
-                
-                # Mostrar tabla resumen
-                st.write(f"Porcentaje de cocteles por lugar en la última semana")
-                last_week = cumulative_data.sort_values("semana").groupby("lugar").last().reset_index()
-                last_week['coctel_mean'] = last_week['coctel_mean'].map(lambda x: f"{x:.1f}")
-                last_week = last_week[["lugar", "coctel_mean"]].rename(columns={"coctel_mean": "pct_cocteles"})
-                st.dataframe(last_week, hide_index=True)
+            # Crear eje X según toggle
+            if usar_fechas_viernes:
+                cumulative_data["eje_x"] = cumulative_data["viernes"].dt.strftime("%d-%m-%Y")
             else:
-                st.warning("No hay datos suficientes")
+                cumulative_data["eje_x"] = cumulative_data["viernes"].dt.strftime("%Y-%m") + "-S" + (
+                    (cumulative_data["viernes"].dt.day - 1) // 7 + 1
+                ).astype(str)
+            
+            # Crear gráfico con múltiples líneas (una por lugar)
+            fig = px.line(
+                cumulative_data,
+                x="eje_x",
+                y="porcentaje",
+                color="lugar",
+                title="Porcentaje de cocteles por semana %",
+                labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes else "Semana", 
+                        "porcentaje": "Porcentaje de cocteles %",
+                        "lugar": "Lugar"},
+                markers=True,
+                text=cumulative_data["porcentaje"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+            )
+            
+            fig.update_traces(textposition="top center")
+            fig.update_xaxes(tickangle=45)
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Mostrar tabla resumen de la última semana
+            st.write(f"Porcentaje de cocteles por lugar en la última semana")
+            last_week = cumulative_data.sort_values("semana").groupby("lugar").last().reset_index()
+            last_week['porcentaje'] = last_week['porcentaje'].map(lambda x: f"{x:.1f}")
+            last_week = last_week[["lugar", "porcentaje"]].rename(columns={"porcentaje": "pct_cocteles"})
+            st.dataframe(last_week, hide_index=True)
         else:
-            st.warning("No hay datos para mostrar")
+            st.warning("No hay datos suficientes")
+
+            
+    #def section_5_grafico_acumulativo(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+    #    """5.- Gráfico acumulativo porcentaje de cocteles"""
+    #    st.subheader("5.- Gráfico acumulativo porcentaje de cocteles en lugar y fecha específica")
+    #    
+    #    fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s5", global_filters)
+    #    
+    #    col1, col2 = st.columns(2)
+    #    with col1:
+    #        option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s5")
+    #    with col2:
+    #        option_lugares = self.filter_manager.get_section_locations("s5", global_filters, multi=True)
+    #    
+    #    usar_fechas_viernes = st.toggle("Mostrar fechas (Viernes de cada semana)", key="toggle_s5")
+    #    
+    #    temp_data = self.temp_coctel_fuente[
+    #        (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
+    #        (self.temp_coctel_fuente['lugar'].isin(option_lugares))
+    #    ]
+    #    
+    #    if not temp_data.empty:
+    #        cumulative_data = self.analytics.calculate_cumulative_percentage(temp_data, option_fuente)
+    #        
+    #        if not cumulative_data.empty:
+    #            if usar_fechas_viernes:
+    #                cumulative_data["eje_x"] = cumulative_data["viernes"].dt.strftime("%d-%m-%Y")
+    #            else:
+    #                cumulative_data["eje_x"] = cumulative_data["viernes"].dt.strftime("%Y-%m") + "-S" + (
+    #                    (cumulative_data["viernes"].dt.day - 1) // 7 + 1
+    #                ).astype(str)
+    #            
+    #            fig = px.line(
+    #                cumulative_data,
+    #                x="eje_x",
+    #                y="coctel_mean",
+    #                color="lugar",
+    #                title="Porcentaje de cocteles por semana %",
+    #                labels={"eje_x": "Fecha (Viernes)" if usar_fechas_viernes else "Semana", "coctel_mean": "Porcentaje de cocteles %"},
+    #                markers=True,
+    #                text=cumulative_data["coctel_mean"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+    #            )
+    #            
+    #            fig.update_traces(textposition="top center")
+    #            fig.update_xaxes(tickangle=45)
+    #            
+    #            st.plotly_chart(fig, use_container_width=True)
+    #            
+    #            # Mostrar tabla resumen
+    #            st.write(f"Porcentaje de cocteles por lugar en la última semana")
+    #            last_week = cumulative_data.sort_values("semana").groupby("lugar").last().reset_index()
+    #            last_week['coctel_mean'] = last_week['coctel_mean'].map(lambda x: f"{x:.1f}")
+    #            last_week = last_week[["lugar", "coctel_mean"]].rename(columns={"coctel_mean": "pct_cocteles"})
+    #            st.dataframe(last_week, hide_index=True)
+    #        else:
+    #            st.warning("No hay datos suficientes")
+    #    else:
+    #        st.warning("No hay datos para mostrar")
     
     def section_top3_mejores_lugares(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """Top 3 mejores porcentajes de coctel semanal por lugar"""
