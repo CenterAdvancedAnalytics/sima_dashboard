@@ -816,53 +816,167 @@ class CoctelSections:
             st.warning("No hay datos para mostrar")
 
     '''        
-              
+
     def section_12_medios_generan_coctel(self, global_filters: Dict[str, Any]):
-        """12.- Reporte semanal acerca de cuantas radios, redes y tv generaron coctel"""
-        st.subheader("12.- Reporte semanal acerca de cuantas radios, redes y tv generaron coctel")
-        
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s12", global_filters)
-        option_lugares = self.filter_manager.get_section_locations("s12", global_filters, multi=True)
-        
-        temp_data = self.temp_coctel_fuente[
-            (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente['lugar'].isin(option_lugares))
-        ]
-        
-        temp_fb = self.temp_coctel_fuente_fb[
-            (self.temp_coctel_fuente_fb['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente_fb['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente_fb['lugar'].isin(option_lugares))
-        ]
-        
-        if not temp_data.empty:
-            tabla_data, chart_data = self.analytics.calculate_media_generating_coctel(temp_data, temp_fb)
-            
-            if not tabla_data.empty:
-                st.dataframe(tabla_data, hide_index=True)
-                
-                y_max = chart_data['Cantidad'].max() * 1.1
-                
-                fig = px.bar(
-                    chart_data,
-                    x='lugar',
-                    y='Cantidad',
-                    color='Fuente',
-                    text='Cantidad',
-                    title="Cantidad de Medios (Canales) que generan Cocteles por Lugar",
-                    labels={'Cantidad': 'Número de Medios', 'lugar': 'Lugar', 'Fuente': 'Fuente'},
-                    color_discrete_map=FUENTE_COLORS,
-                    barmode='stack'
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("No hay datos para mostrar")
-        else:
-            st.warning("No hay datos para mostrar")
-    
-    
+       """12.- Reporte semanal acerca de cuantas radios, redes y tv generaron coctel"""
+       st.subheader("12.- Reporte semanal acerca de cuantas radios, redes y tv generaron coctel")
+       
+       fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s12", global_filters)
+       option_lugares = self.filter_manager.get_section_locations("s12", global_filters, multi=True)
+       
+       # Convertir fechas a string format para SQL
+       fecha_inicio_str = fecha_inicio.strftime('%Y-%m-%d')
+       fecha_fin_str = fecha_fin.strftime('%Y-%m-%d')
+       
+       # Importar la función SQL
+       from sections.functions.grafico12 import data_section_12_medios_generan_coctel_sql
+       
+       # Obtener los tres DataFrames: resumen, desagregado y gráfico
+       tabla_resumen, tabla_desagregada, datos_grafico = data_section_12_medios_generan_coctel_sql(
+           fecha_inicio_str, 
+           fecha_fin_str, 
+           option_lugares
+       )
+       
+       if not tabla_resumen.empty:
+           # 1. TABLA RESUMEN (agregada por lugar y fuente)
+           st.write("### 📊 Resumen: Cantidad de medios únicos que generaron cóctel")
+           st.write(f"**Período:** {fecha_inicio.strftime('%d.%m.%Y')} al {fecha_fin.strftime('%d.%m.%Y')}")
+           st.dataframe(tabla_resumen, hide_index=True)
+           
+           # 2. GRÁFICO DE BARRAS APILADAS
+           if not datos_grafico.empty:
+               fig = px.bar(
+                   datos_grafico,
+                   x='lugar',
+                   y='Cantidad',
+                   color='fuente',
+                   text='Cantidad',
+                   title="Cantidad de Medios (Canales/Páginas) que generan Cocteles por Lugar",
+                   labels={'Cantidad': 'Número de Medios', 'lugar': 'Lugar', 'fuente': 'Fuente'},
+                   color_discrete_map=FUENTE_COLORS,
+                   barmode='stack'
+               )
+               
+               fig.update_traces(textposition='inside')
+               fig.update_layout(
+                   xaxis_title="Lugar",
+                   yaxis_title="Cantidad de Medios Únicos",
+                   showlegend=True,
+                   legend_title="Fuente"
+               )
+               
+               st.plotly_chart(fig, use_container_width=True)
+           
+           # 3. TABLA DESAGREGADA (detalle por cada canal/página)
+           if not tabla_desagregada.empty:
+               st.write("### 📋 Detalle: Medios que generaron cóctel")
+               st.write("*Lista completa de canales y páginas de Facebook que generaron al menos un cóctel*")
+               
+               # Agregar filtro por fuente en la tabla desagregada
+               col1, col2 = st.columns([1, 3])
+               with col1:
+                   fuentes_disponibles = ['Todos'] + sorted(tabla_desagregada['fuente'].unique().tolist())
+                   filtro_fuente = st.selectbox(
+                       "Filtrar por fuente:", 
+                       fuentes_disponibles,
+                       key="filtro_fuente_s12"
+                   )
+               
+               # Aplicar filtro si no es "Todos"
+               if filtro_fuente != 'Todos':
+                   tabla_mostrar = tabla_desagregada[tabla_desagregada['fuente'] == filtro_fuente].copy()
+               else:
+                   tabla_mostrar = tabla_desagregada.copy()
+               
+               # Renombrar columnas para mejor visualización
+               tabla_mostrar = tabla_mostrar.rename(columns={
+                   'fuente': 'Fuente',
+                   'lugar': 'Lugar'
+               })
+               
+               # Mostrar estadísticas
+               total_medios = len(tabla_mostrar)
+               total_cocteles = tabla_mostrar['Cantidad de Cocteles'].sum()
+               
+               col1, col2, col3 = st.columns(3)
+               with col1:
+                   st.metric("Total Medios", total_medios)
+               with col2:
+                   st.metric("Total Cocteles", int(total_cocteles))
+               with col3:
+                   promedio = total_cocteles / total_medios if total_medios > 0 else 0
+                   st.metric("Promedio por Medio", f"{promedio:.1f}")
+               
+               # Mostrar tabla con opción de búsqueda
+               st.dataframe(
+                   tabla_mostrar,
+                   hide_index=True,
+                   use_container_width=True,
+                   height=400
+               )
+               
+               # Opción para descargar
+               csv = tabla_mostrar.to_csv(index=False).encode('utf-8')
+               st.download_button(
+                   label="📥 Descargar tabla completa (CSV)",
+                   data=csv,
+                   file_name=f"medios_coctel_{fecha_inicio_str}_{fecha_fin_str}.csv",
+                   mime="text/csv",
+                   key="download_s12"
+               )
+           else:
+               st.info("No hay datos desagregados para mostrar")
+       else:
+           st.warning("No hay datos para mostrar en el período seleccionado")
+
+
+    #def section_12_medios_generan_coctel(self, global_filters: Dict[str, Any]):
+    #    """12.- Reporte semanal acerca de cuantas radios, redes y tv generaron coctel"""
+    #    st.subheader("12.- Reporte semanal acerca de cuantas radios, redes y tv generaron coctel")
+    #    
+    #    fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s12", global_filters)
+    #    option_lugares = self.filter_manager.get_section_locations("s12", global_filters, multi=True)
+    #    
+    #    temp_data = self.temp_coctel_fuente[
+    #        (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
+    #        (self.temp_coctel_fuente['lugar'].isin(option_lugares))
+    #    ]
+    #    
+    #    temp_fb = self.temp_coctel_fuente_fb[
+    #        (self.temp_coctel_fuente_fb['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_fuente_fb['fecha_registro'] <= fecha_fin) &
+    #        (self.temp_coctel_fuente_fb['lugar'].isin(option_lugares))
+    #    ]
+    #    
+    #    if not temp_data.empty:
+    #        tabla_data, chart_data = self.analytics.calculate_media_generating_coctel(temp_data, temp_fb)
+    #        
+    #        if not tabla_data.empty:
+    #            st.dataframe(tabla_data, hide_index=True)
+    #            
+    #            y_max = chart_data['Cantidad'].max() * 1.1
+    #            
+    #            fig = px.bar(
+    #                chart_data,
+    #                x='lugar',
+    #                y='Cantidad',
+    #                color='Fuente',
+    #                text='Cantidad',
+    #                title="Cantidad de Medios (Canales) que generan Cocteles por Lugar",
+    #                labels={'Cantidad': 'Número de Medios', 'lugar': 'Lugar', 'Fuente': 'Fuente'},
+    #                color_discrete_map=FUENTE_COLORS,
+    #                barmode='stack'
+    #            )
+    #            
+    #            st.plotly_chart(fig, use_container_width=True)
+    #        else:
+    #            st.warning("No hay datos para mostrar")
+    #    else:
+    #        st.warning("No hay datos para mostrar")
+    #
+    #
 
     # Agregar este import al inicio del archivo coctel_sections.py, junto con los otros imports
 
