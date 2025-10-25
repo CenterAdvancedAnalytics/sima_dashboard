@@ -8,6 +8,7 @@ import sys
 import os
 from sections.functions.sn import data_section_sn_proporcion_simple_sql
 
+
 # Agregar el directorio raíz al path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -1052,115 +1053,228 @@ class CoctelSections:
             return False
     
     def section_14_notas_favor_contra(self, global_filters: Dict[str, Any], mostrar_todos: bool):
-        """14.- Porcentaje de notas que sean a favor, neutral y en contra"""
-        st.subheader("14.- Porcentaje de notas que sean a favor, neutral y en contra")
+   
+       """14.- Porcentaje de notas que sean a favor, neutral y en contra"""
+       from sections.functions.grafico14 import data_section_14_favor_contra_neutral_sql
+       st.subheader("14.- Porcentaje de notas que sean a favor, neutral y en contra")
+   
+       fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s14", global_filters)
+   
+       option_nota = st.selectbox("Notas", ("Con coctel", "Sin coctel", "Todos"), key="nota_s14")
+   
+       col1, col2 = st.columns(2)
+   
+       with col1:
+           # filtro de lugar con opción "Todas las regiones"
+           available_locations = sorted(self.temp_coctel_fuente['lugar'].dropna().unique())
+           location_options = ["Todas las regiones"] + available_locations
+           option_lugar = st.selectbox("Lugar", options=location_options, key="lugar_s14")
+   
+       with col2:
+           # filtro de fuente con labels amigables
+           fuente_display_to_real = {
+               "Radio": "RADIO",
+               "TV": "TV",
+               "Redes": "REDES"
+           }
+   
+           option_fuente_display = st.multiselect(
+               "Fuente", ["Radio", "TV", "Redes"],
+               ["Radio", "TV", "Redes"], key="fuente_s14"
+           )
+   
+           option_fuente = [fuente_display_to_real[f] for f in option_fuente_display]
+   
+       # Convertir fechas a string formato YYYY-MM-DD
+       fecha_inicio_str = fecha_inicio.strftime('%Y-%m-%d')
+       fecha_fin_str = fecha_fin.strftime('%Y-%m-%d')
+   
+       # Llamar a la función SQL
+       conteo_pct, long_df, conteo_abs = data_section_14_favor_contra_neutral_sql(
+           fecha_inicio_str, 
+           fecha_fin_str, 
+           option_lugar, 
+           option_fuente, 
+           option_nota
+       )
+   
+       if not conteo_pct.empty:
+           if option_nota == "Con coctel":
+               titulo = "Porcentaje de notas que sean a favor, neutral y en contra con coctel"
+           elif option_nota == "Sin coctel":
+               titulo = "Porcentaje de notas que sean a favor, neutral y en contra sin coctel"
+           else:
+               titulo = "Porcentaje de notas que sean a favor, neutral y en contra"
+   
+           # encabezado de análisis
+           lugar_texto = "todas las regiones" if option_lugar == "Todas las regiones" else option_lugar
+           st.write(f"Análisis en **{lugar_texto}** entre {fecha_inicio.strftime('%d-%m-%Y')} y {fecha_fin.strftime('%d-%m-%Y')}")
+   
+           # preparar data para tablas
+           conteo_pct["A favor (%)"] = conteo_pct["a_favor_pct"].map("{:.2f}".format)      # Cambiar de {:.1f} a {:.2f}
+           conteo_pct["En contra (%)"] = conteo_pct["en_contra_pct"].map("{:.2f}".format)  # Cambiar de {:.1f} a {:.2f}
+           conteo_pct["Neutral (%)"] = conteo_pct["neutral_pct"].map("{:.2f}".format)   
+   
+           conteo_abs = conteo_abs.rename(columns={
+               "a_favor": "A favor",
+               "en_contra": "En contra",
+               "neutral": "Neutral"
+           })
+   
+           # mostrar tablas lado a lado
+           col1, col2 = st.columns(2)
+   
+           with col1:
+               st.write("Porcentajes por tipo de nota")
+               st.dataframe(
+                   conteo_pct[["año_mes", "A favor (%)", "Neutral (%)", "En contra (%)"]],
+                   hide_index=True
+               )
+   
+           with col2:
+               st.write("Conteo absoluto de notas")
+               st.dataframe(
+                   conteo_abs[["año_mes", "A favor", "Neutral", "En contra"]],
+                   hide_index=True
+               )
+   
+           # gráfico
+           fig = px.bar(
+               long_df,
+               x="año_mes",
+               y="Porcentaje",
+               color="Tipo de Nota",
+               barmode="stack",
+               title=titulo,
+               labels={"año_mes": "Año y Mes", "Porcentaje": "Porcentaje"},
+               text=long_df["Porcentaje"].map("{:.2f}%".format) if mostrar_todos else None,  # Cambiar de {:.1f}% a {:.2f}%
+               color_discrete_map={
+                   "a_favor_pct": "blue",
+                   "en_contra_pct": "red",
+                   "neutral_pct": "gray",
+               },
+           )
+   
+           fig.update_layout(barmode='stack', xaxis={'categoryorder': 'category ascending'})
+           fig.for_each_trace(lambda t: t.update(name=t.name.replace('_pct', ' (%)')))
+   
+           st.plotly_chart(fig, use_container_width=True)
+       else:
+           st.warning("No hay datos para mostrar")
 
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s14", global_filters)
+    #def section_14_notas_favor_contra(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+    #    """14.- Porcentaje de notas que sean a favor, neutral y en contra"""
+    #    st.subheader("14.- Porcentaje de notas que sean a favor, neutral y en contra")
+#
+    #    fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s14", global_filters)
+#
+    #    option_nota = st.selectbox("Notas", ("Con coctel", "Sin coctel", "Todos"), key="nota_s14")
+#
+    #    col1, col2 = st.columns(2)
+#
+    #    with col1:
+    #        # filtro de lugar con opción "Todas las regiones"
+    #        available_locations = sorted(self.temp_coctel_fuente['lugar'].dropna().unique())
+    #        location_options = ["Todas las regiones"] + available_locations
+    #        option_lugar = st.selectbox("Lugar", options=location_options, key="lugar_s14")
+#
+    #    with col2:
+    #        # filtro de fuente con labels amigables
+    #        fuente_display_to_real = {
+    #            "Radio": "RADIO",
+    #            "TV": "TV",
+    #            "Redes": "REDES"
+    #        }
+#
+    #        option_fuente_display = st.multiselect(
+    #            "Fuente", ["Radio", "TV", "Redes"],
+    #            ["Radio", "TV", "Redes"], key="fuente_s14"
+    #        )
+#
+    #        option_fuente = [fuente_display_to_real[f] for f in option_fuente_display]
+#
+    #    # aplicar filtros
+    #    temp_data = self.temp_coctel_fuente[
+    #        (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
+    #        ((self.temp_coctel_fuente['lugar'] == option_lugar) if option_lugar != "Todas las regiones" else True) &
+    #        (self.temp_coctel_fuente['fuente_nombre'].isin(option_fuente))
+    #    ]
+#
+    #    if not temp_data.empty:
+    #        conteo_pct, long_df, conteo_abs = self.analytics.calculate_favor_contra_notes(temp_data, option_nota)
+#
+    #        if not conteo_pct.empty:
+    #            if option_nota == "Con coctel":
+    #                titulo = "Porcentaje de notas que sean a favor, neutral y en contra con coctel"
+    #            elif option_nota == "Sin coctel":
+    #                titulo = "Porcentaje de notas que sean a favor, neutral y en contra sin coctel"
+    #            else:
+    #                titulo = "Porcentaje de notas que sean a favor, neutral y en contra"
+#
+    #            # encabezado de análisis
+    #            lugar_texto = "todas las regiones" if option_lugar == "Todas las regiones" else option_lugar
+    #            st.write(f"Análisis en **{lugar_texto}** entre {fecha_inicio.strftime('%d-%m-%Y')} y {fecha_fin.strftime('%d-%m-%Y')}")
+#
+    #            # preparar data para tablas
+    #            conteo_pct["A favor (%)"] = conteo_pct["a_favor_pct"].map("{:.1f}".format)
+    #            conteo_pct["En contra (%)"] = conteo_pct["en_contra_pct"].map("{:.1f}".format)
+    #            conteo_pct["Neutral (%)"] = conteo_pct["neutral_pct"].map("{:.1f}".format)
+#
+    #            conteo_abs = conteo_abs.rename(columns={
+    #                "a_favor": "A favor",
+    #                "en_contra": "En contra",
+    #                "neutral": "Neutral"
+    #            })
+#
+    #            # mostrar tablas lado a lado
+    #            col1, col2 = st.columns(2)
+#
+    #            with col1:
+    #                st.write("Porcentajes por tipo de nota")
+    #                st.dataframe(
+    #                    conteo_pct[["año_mes", "A favor (%)", "Neutral (%)", "En contra (%)"]],
+    #                    hide_index=True
+    #                )
+#
+    #            with col2:
+    #                st.write("Conteo absoluto de notas")
+    #                st.dataframe(
+    #                    conteo_abs[["año_mes", "A favor", "Neutral", "En contra"]],
+    #                    hide_index=True
+    #                )
+#
+    #            # gráfico
+    #            fig = px.bar(
+    #                long_df,
+    #                x="año_mes",
+    #                y="Porcentaje",
+    #                color="Tipo de Nota",
+    #                barmode="stack",
+    #                title=titulo,
+    #                labels={"año_mes": "Año y Mes", "Porcentaje": "Porcentaje"},
+    #                text=long_df["Porcentaje"].map("{:.1f}%".format) if mostrar_todos else None,
+    #                color_discrete_map={
+    #                    "a_favor_pct": "blue",
+    #                    "en_contra_pct": "red",
+    #                    "neutral_pct": "gray",
+    #                },
+    #            )
+#
+    #            fig.update_layout(barmode='stack', xaxis={'categoryorder': 'category ascending'})
+    #            fig.for_each_trace(lambda t: t.update(name=t.name.replace('_pct', ' (%)')))
+#
+    #            st.plotly_chart(fig, use_container_width=True)
+    #        else:
+    #            st.warning("No hay datos para mostrar")
+    #    else:
+    #        st.warning("No hay datos para mostrar")
+     
 
-        option_nota = st.selectbox("Notas", ("Con coctel", "Sin coctel", "Todos"), key="nota_s14")
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            # filtro de lugar con opción "Todas las regiones"
-            available_locations = sorted(self.temp_coctel_fuente['lugar'].dropna().unique())
-            location_options = ["Todas las regiones"] + available_locations
-            option_lugar = st.selectbox("Lugar", options=location_options, key="lugar_s14")
-
-        with col2:
-            # filtro de fuente con labels amigables
-            fuente_display_to_real = {
-                "Radio": "RADIO",
-                "TV": "TV",
-                "Redes": "REDES"
-            }
-
-            option_fuente_display = st.multiselect(
-                "Fuente", ["Radio", "TV", "Redes"],
-                ["Radio", "TV", "Redes"], key="fuente_s14"
-            )
-
-            option_fuente = [fuente_display_to_real[f] for f in option_fuente_display]
-
-        # aplicar filtros
-        temp_data = self.temp_coctel_fuente[
-            (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
-            ((self.temp_coctel_fuente['lugar'] == option_lugar) if option_lugar != "Todas las regiones" else True) &
-            (self.temp_coctel_fuente['fuente_nombre'].isin(option_fuente))
-        ]
-
-        if not temp_data.empty:
-            conteo_pct, long_df, conteo_abs = self.analytics.calculate_favor_contra_notes(temp_data, option_nota)
-
-            if not conteo_pct.empty:
-                if option_nota == "Con coctel":
-                    titulo = "Porcentaje de notas que sean a favor, neutral y en contra con coctel"
-                elif option_nota == "Sin coctel":
-                    titulo = "Porcentaje de notas que sean a favor, neutral y en contra sin coctel"
-                else:
-                    titulo = "Porcentaje de notas que sean a favor, neutral y en contra"
-
-                # encabezado de análisis
-                lugar_texto = "todas las regiones" if option_lugar == "Todas las regiones" else option_lugar
-                st.write(f"Análisis en **{lugar_texto}** entre {fecha_inicio.strftime('%d-%m-%Y')} y {fecha_fin.strftime('%d-%m-%Y')}")
-
-                # preparar data para tablas
-                conteo_pct["A favor (%)"] = conteo_pct["a_favor_pct"].map("{:.1f}".format)
-                conteo_pct["En contra (%)"] = conteo_pct["en_contra_pct"].map("{:.1f}".format)
-                conteo_pct["Neutral (%)"] = conteo_pct["neutral_pct"].map("{:.1f}".format)
-
-                conteo_abs = conteo_abs.rename(columns={
-                    "a_favor": "A favor",
-                    "en_contra": "En contra",
-                    "neutral": "Neutral"
-                })
-
-                # mostrar tablas lado a lado
-                col1, col2 = st.columns(2)
-
-                with col1:
-                    st.write("Porcentajes por tipo de nota")
-                    st.dataframe(
-                        conteo_pct[["año_mes", "A favor (%)", "Neutral (%)", "En contra (%)"]],
-                        hide_index=True
-                    )
-
-                with col2:
-                    st.write("Conteo absoluto de notas")
-                    st.dataframe(
-                        conteo_abs[["año_mes", "A favor", "Neutral", "En contra"]],
-                        hide_index=True
-                    )
-
-                # gráfico
-                fig = px.bar(
-                    long_df,
-                    x="año_mes",
-                    y="Porcentaje",
-                    color="Tipo de Nota",
-                    barmode="stack",
-                    title=titulo,
-                    labels={"año_mes": "Año y Mes", "Porcentaje": "Porcentaje"},
-                    text=long_df["Porcentaje"].map("{:.1f}%".format) if mostrar_todos else None,
-                    color_discrete_map={
-                        "a_favor_pct": "blue",
-                        "en_contra_pct": "red",
-                        "neutral_pct": "gray",
-                    },
-                )
-
-                fig.update_layout(barmode='stack', xaxis={'categoryorder': 'category ascending'})
-                fig.for_each_trace(lambda t: t.update(name=t.name.replace('_pct', ' (%)')))
-
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("No hay datos para mostrar")
-        else:
-            st.warning("No hay datos para mostrar")
-
-
+    
+    
     def section_15_proporcion_mensajes(self, global_filters: Dict[str, Any]):
+        from sections.functions.grafico15 import data_section_15_proporcion_mensajes_sql
         """15.- Proporción de Mensajes Emitidos por Fuente y Tipo de Nota"""
         st.subheader("15.- Proporción de Mensajes Emitidos por Fuente y Tipo de Nota en un Lugar y Fecha Específica")
         
@@ -1170,7 +1284,6 @@ class CoctelSections:
         with col1:
             option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s15")
         with col2:
-            # Local location selector - independent of global filters
             available_locations = self.temp_coctel_fuente['lugar'].dropna().unique()
             option_lugar = st.selectbox(
                 "Lugar", 
@@ -1180,41 +1293,102 @@ class CoctelSections:
         with col3:
             option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s15")
         
-        temp_data = self.temp_coctel_fuente[
-            (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente['lugar'] == option_lugar)
-        ]
+        # Convertir fechas a string
+        fecha_inicio_str = fecha_inicio.strftime('%Y-%m-%d')
+        fecha_fin_str = fecha_fin.strftime('%Y-%m-%d')
         
-        if not temp_data.empty:
-            prop_data = self.analytics.calculate_message_proportion_by_position(temp_data, option_fuente, option_nota)
-            
-            if not prop_data.empty:
-                if option_nota == 'Con coctel':
-                    titulo = f"Proporción de mensajes emitidos con coctel por {option_fuente} en {option_lugar}"
-                elif option_nota == 'Sin coctel':
-                    titulo = f"Proporción de mensajes emitidos sin coctel por {option_fuente} en {option_lugar}"
-                else:
-                    titulo = f"Proporción de mensajes emitidos por {option_fuente} en {option_lugar}"
-                
-                fig = px.pie(
-                    prop_data,
-                    values='frecuencia',
-                    names='id_posicion',
-                    title=titulo,
-                    color='id_posicion',
-                    color_discrete_map=COLOR_POSICION_DICT,
-                    hole=0.3
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-                st.dataframe(prop_data, hide_index=True)
+        # Llamar función SQL
+        prop_data = data_section_15_proporcion_mensajes_sql(
+            fecha_inicio_str,
+            fecha_fin_str,
+            option_lugar,
+            option_fuente,
+            option_nota
+        )
+        
+        if not prop_data.empty:
+            if option_nota == 'Con coctel':
+                titulo = f"Proporción de mensajes emitidos con coctel por {option_fuente} en {option_lugar}"
+            elif option_nota == 'Sin coctel':
+                titulo = f"Proporción de mensajes emitidos sin coctel por {option_fuente} en {option_lugar}"
             else:
-                st.warning("No hay datos para mostrar")
+                titulo = f"Proporción de mensajes emitidos por {option_fuente} en {option_lugar}"
+            
+            fig = px.pie(
+                prop_data,
+                values='frecuencia',
+                names='id_posicion',
+                title=titulo,
+                color='id_posicion',
+                color_discrete_map=COLOR_POSICION_DICT,
+                hole=0.3
+            )
+            
+            st.plotly_chart(fig, use_container_width=True)
+            st.dataframe(prop_data, hide_index=True)
         else:
             st.warning("No hay datos para mostrar")
+    #     
+#
+    #def section_15_proporcion_mensajes(self, global_filters: Dict[str, Any]):
+    #    """15.- Proporción de Mensajes Emitidos por Fuente y Tipo de Nota"""
+    #    st.subheader("15.- Proporción de Mensajes Emitidos por Fuente y Tipo de Nota en un Lugar y Fecha Específica")
+    #    
+    #    fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s15", global_filters)
+    #    
+    #    col1, col2, col3 = st.columns(3)
+    #    with col1:
+    #        option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s15")
+    #    with col2:
+    #        # Local location selector - independent of global filters
+    #        available_locations = self.temp_coctel_fuente['lugar'].dropna().unique()
+    #        option_lugar = st.selectbox(
+    #            "Lugar", 
+    #            options=sorted(available_locations), 
+    #            key="lugar_s15"
+    #        )
+    #    with col3:
+    #        option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s15")
+    #    
+    #    temp_data = self.temp_coctel_fuente[
+    #        (self.temp_coctel_fuente['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_fuente['fecha_registro'] <= fecha_fin) &
+    #        (self.temp_coctel_fuente['lugar'] == option_lugar)
+    #    ]
+    #    
+    #    if not temp_data.empty:
+    #        prop_data = self.analytics.calculate_message_proportion_by_position(temp_data, option_fuente, option_nota)
+    #        
+    #        if not prop_data.empty:
+    #            if option_nota == 'Con coctel':
+    #                titulo = f"Proporción de mensajes emitidos con coctel por {option_fuente} en {option_lugar}"
+    #            elif option_nota == 'Sin coctel':
+    #                titulo = f"Proporción de mensajes emitidos sin coctel por {option_fuente} en {option_lugar}"
+    #            else:
+    #                titulo = f"Proporción de mensajes emitidos por {option_fuente} en {option_lugar}"
+    #            
+    #            fig = px.pie(
+    #                prop_data,
+    #                values='frecuencia',
+    #                names='id_posicion',
+    #                title=titulo,
+    #                color='id_posicion',
+    #                color_discrete_map=COLOR_POSICION_DICT,
+    #                hole=0.3
+    #            )
+    #            
+    #            st.plotly_chart(fig, use_container_width=True)
+    #            st.dataframe(prop_data, hide_index=True)
+    #        else:
+    #            st.warning("No hay datos para mostrar")
+    #    else:
+    #        st.warning("No hay datos para mostrar")
     
+
+
     def section_16_mensajes_por_tema(self, global_filters: Dict[str, Any]):
+
+        from sections.functions.grafico16 import data_section_16_mensajes_por_tema_sql
         """16.- Recuento de Mensajes Emitidos por Tema y Tipo de Nota"""
         st.subheader("16.- Recuento de Mensajes Emitidos por Tema y Tipo de Nota en Lugar y Fecha Específica")
         
@@ -1234,117 +1408,330 @@ class CoctelSections:
         with col3:
             option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s16")
         
-        temp_data = self.temp_coctel_temas[
-            (self.temp_coctel_temas['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_temas['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_temas['lugar'] == option_lugar)
-        ]
+        # ====================================
+        # CAMBIO PRINCIPAL: Usar la función SQL
+        # ====================================
         
-        if not temp_data.empty:
-            topic_data = self.analytics.calculate_messages_by_topic(temp_data, option_fuente, option_nota, 10)
+        # Convertir fechas a string formato YYYY-MM-DD
+        fecha_inicio_str = fecha_inicio.strftime('%Y-%m-%d')
+        fecha_fin_str = fecha_fin.strftime('%Y-%m-%d')
+        
+        # Llamar a la función SQL
+        topic_data = data_section_16_mensajes_por_tema_sql(
+            fecha_inicio_str,
+            fecha_fin_str,
+            option_lugar,
+            option_fuente,
+            option_nota,
+            top_n=10
+        )
+        
+        # ====================================
+        # RESTO DEL CÓDIGO IGUAL (visualización)
+        # ====================================
+        
+        if not topic_data.empty:
+            # Sort the data by frequency in descending order (largest to smallest)
+            topic_data_sorted = topic_data.groupby('descripcion')['frecuencia'].sum().reset_index()
+            topic_data_sorted = topic_data_sorted.sort_values('frecuencia', ascending=False)
             
-            if not topic_data.empty:
-                # Sort the data by frequency in descending order (largest to smallest)
-                topic_data_sorted = topic_data.groupby('descripcion')['frecuencia'].sum().reset_index()
-                topic_data_sorted = topic_data_sorted.sort_values('frecuencia', ascending=False)
-                
-                # Merge back with original data to preserve all columns and maintain the order
-                topic_data = topic_data.merge(
-                    topic_data_sorted[['descripcion']], 
-                    on='descripcion', 
-                    how='inner'
-                )
-                # Set the category order for x-axis
-                topic_data['descripcion'] = pd.Categorical(
-                    topic_data['descripcion'], 
-                    categories=topic_data_sorted['descripcion'].tolist(), 
-                    ordered=True
-                )
-                topic_data = topic_data.sort_values('descripcion')
-                
-                if option_nota == 'Con coctel':
-                    titulo = f"Recuento de mensajes emitidos con coctel por {option_fuente} en {option_lugar}"
-                elif option_nota == 'Sin coctel':
-                    titulo = f"Recuento de mensajes emitidos sin coctel por {option_fuente} en {option_lugar}"
-                else:
-                    titulo = f"Recuento de mensajes emitidos por {option_fuente} en {option_lugar}"
-                
-                fig = px.bar(
-                    topic_data,
-                    x='descripcion',
-                    y='frecuencia',
-                    title=titulo,
-                    color='id_posicion',
-                    text='frecuencia',
-                    barmode='stack',
-                    labels={'frecuencia': 'Frecuencia', 'descripcion': 'Tema', 'id_posicion': 'Posición'},
-                    color_discrete_map=COLOR_POSICION_DICT,
-                    height=500
-                )
-                
-                fig.update_xaxes(tickangle=45)
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("No hay datos para mostrar")
-        else:
-            st.warning("No hay datos para mostrar")
-    
-    def section_17_proporcion_por_tema(self, global_filters: Dict[str, Any], mostrar_todos: bool):
-        """17.- Proporción de Mensajes Emitidos por Fuente y Tipo de Nota por Tema"""
-        st.subheader("17.- Proporción de Mensajes Emitidos por Fuente y Tipo de Nota en un Lugar y Fecha Específicos")
-        
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s17", global_filters)
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s17")
-        with col2:
-            # Local location selector - independent of global filters
-            available_locations = self.temp_coctel_temas['lugar'].dropna().unique()
-            option_lugar = st.selectbox(
-                "Lugar", 
-                options=sorted(available_locations), 
-                key="lugar_s17"
+            # Merge back with original data to preserve all columns and maintain the order
+            topic_data = topic_data.merge(
+                topic_data_sorted[['descripcion']], 
+                on='descripcion', 
+                how='inner'
             )
-        with col3:
-            option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s17")
-        
-        temp_data = self.temp_coctel_temas[
-            (self.temp_coctel_temas['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_temas['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_temas['lugar'] == option_lugar)
-        ]
-        
-        if not temp_data.empty:
-            prop_data = self.analytics.calculate_topic_proportion(temp_data, option_fuente, option_nota, 10)
+            # Set the category order for x-axis
+            topic_data['descripcion'] = pd.Categorical(
+                topic_data['descripcion'], 
+                categories=topic_data_sorted['descripcion'].tolist(), 
+                ordered=True
+            )
+            topic_data = topic_data.sort_values('descripcion')
             
-            if not prop_data.empty:
-                if option_nota == 'Con coctel':
-                    titulo = f"Proporción de mensajes emitidos con coctel por {option_fuente} en {option_lugar}"
-                elif option_nota == 'Sin coctel':
-                    titulo = f"Proporción de mensajes emitidos sin coctel por {option_fuente} en {option_lugar}"
-                else:
-                    titulo = f"Proporción de mensajes emitidos por {option_fuente} en {option_lugar}"
-                
-                fig = px.bar(
-                    prop_data,
-                    x="porcentaje",
-                    y="descripcion",
-                    title=titulo,
-                    orientation='h',
-                    text=prop_data["porcentaje"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
-                    labels={'porcentaje': 'Porcentaje %', 'descripcion': 'Temas'}
-                )
-                
-                fig.update_traces(textposition="outside" if mostrar_todos else "none")
-                fig.update_layout(yaxis={'categoryorder': 'total ascending'})
-                
-                st.plotly_chart(fig, use_container_width=True)
+            if option_nota == 'Con coctel':
+                titulo = f"Recuento de mensajes emitidos con coctel por {option_fuente} en {option_lugar}"
+            elif option_nota == 'Sin coctel':
+                titulo = f"Recuento de mensajes emitidos sin coctel por {option_fuente} en {option_lugar}"
             else:
-                st.warning("No hay datos para mostrar")
+                titulo = f"Recuento de mensajes emitidos por {option_fuente} en {option_lugar}"
+            
+            fig = px.bar(
+                topic_data,
+                x='descripcion',
+                y='frecuencia',
+                title=titulo,
+                color='id_posicion',
+                text='frecuencia',
+                barmode='stack',
+                labels={'frecuencia': 'Frecuencia', 'descripcion': 'Tema', 'id_posicion': 'Posición'},
+                color_discrete_map=COLOR_POSICION_DICT,
+                height=500
+            )
+            
+            fig.update_xaxes(tickangle=45)
+            st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("No hay datos para mostrar")
+
+    #def section_16_mensajes_por_tema(self, global_filters: Dict[str, Any]):
+    #    """16.- Recuento de Mensajes Emitidos por Tema y Tipo de Nota"""
+    #    st.subheader("16.- Recuento de Mensajes Emitidos por Tema y Tipo de Nota en Lugar y Fecha Específica")
+    #    
+    #    fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s16", global_filters)
+    #    
+    #    col1, col2, col3 = st.columns(3)
+    #    with col1:
+    #        option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s16")
+    #    with col2:
+    #        # Local location selector - independent of global filters
+    #        available_locations = self.temp_coctel_temas['lugar'].dropna().unique()
+    #        option_lugar = st.selectbox(
+    #            "Lugar", 
+    #            options=sorted(available_locations), 
+    #            key="lugar_s16"
+    #        )
+    #    with col3:
+    #        option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s16")
+    #    
+    #    temp_data = self.temp_coctel_temas[
+    #        (self.temp_coctel_temas['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_temas['fecha_registro'] <= fecha_fin) &
+    #        (self.temp_coctel_temas['lugar'] == option_lugar)
+    #    ]
+    #    
+    #    if not temp_data.empty:
+    #        topic_data = self.analytics.calculate_messages_by_topic(temp_data, option_fuente, option_nota, 10)
+    #        
+    #        if not topic_data.empty:
+    #            # Sort the data by frequency in descending order (largest to smallest)
+    #            topic_data_sorted = topic_data.groupby('descripcion')['frecuencia'].sum().reset_index()
+    #            topic_data_sorted = topic_data_sorted.sort_values('frecuencia', ascending=False)
+    #            
+    #            # Merge back with original data to preserve all columns and maintain the order
+    #            topic_data = topic_data.merge(
+    #                topic_data_sorted[['descripcion']], 
+    #                on='descripcion', 
+    #                how='inner'
+    #            )
+    #            # Set the category order for x-axis
+    #            topic_data['descripcion'] = pd.Categorical(
+    #                topic_data['descripcion'], 
+    #                categories=topic_data_sorted['descripcion'].tolist(), 
+    #                ordered=True
+    #            )
+    #            topic_data = topic_data.sort_values('descripcion')
+    #            
+    #            if option_nota == 'Con coctel':
+    #                titulo = f"Recuento de mensajes emitidos con coctel por {option_fuente} en {option_lugar}"
+    #            elif option_nota == 'Sin coctel':
+    #                titulo = f"Recuento de mensajes emitidos sin coctel por {option_fuente} en {option_lugar}"
+    #            else:
+    #                titulo = f"Recuento de mensajes emitidos por {option_fuente} en {option_lugar}"
+    #            
+    #            fig = px.bar(
+    #                topic_data,
+    #                x='descripcion',
+    #                y='frecuencia',
+    #                title=titulo,
+    #                color='id_posicion',
+    #                text='frecuencia',
+    #                barmode='stack',
+    #                labels={'frecuencia': 'Frecuencia', 'descripcion': 'Tema', 'id_posicion': 'Posición'},
+    #                color_discrete_map=COLOR_POSICION_DICT,
+    #                height=500
+    #            )
+    #            
+    #            fig.update_xaxes(tickangle=45)
+    #            st.plotly_chart(fig, use_container_width=True)
+    #        else:
+    #            st.warning("No hay datos para mostrar")
+    #    else:
+    #        st.warning("No hay datos para mostrar")
     
+
+    
+
+    def section_17_proporcion_por_tema(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+       
+       from sections.functions.grafico17 import data_section_17_proporcion_por_tema_sql
+       """17.- Proporción de Mensajes Emitidos por Fuente y Tipo de Nota por Tema"""
+       st.subheader("17.- Proporción de Mensajes Emitidos por Fuente y Tipo de Nota en un Lugar y Fecha Específicos")
+       
+       fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s17", global_filters)
+       
+       col1, col2, col3 = st.columns(3)
+       with col1:
+           option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s17")
+       with col2:
+           available_locations = self.temp_coctel_temas['lugar'].dropna().unique()
+           option_lugar = st.selectbox(
+               "Lugar", 
+               options=sorted(available_locations), 
+               key="lugar_s17"
+           )
+       with col3:
+           option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s17")
+       
+       # Convertir fechas a string
+       fecha_inicio_str = fecha_inicio.strftime('%Y-%m-%d')
+       fecha_fin_str = fecha_fin.strftime('%Y-%m-%d')
+       
+       # Llamar función SQL
+       prop_data = data_section_17_proporcion_por_tema_sql(
+           fecha_inicio_str,
+           fecha_fin_str,
+           option_lugar,
+           option_fuente,
+           option_nota,
+           top_n=10
+       )
+       
+       if not prop_data.empty:
+           if option_nota == 'Con coctel':
+               titulo = f"Proporción de mensajes emitidos con coctel por {option_fuente} en {option_lugar}"
+           elif option_nota == 'Sin coctel':
+               titulo = f"Proporción de mensajes emitidos sin coctel por {option_fuente} en {option_lugar}"
+           else:
+               titulo = f"Proporción de mensajes emitidos por {option_fuente} en {option_lugar}"
+           
+           fig = px.bar(
+               prop_data,
+               x="porcentaje",
+               y="descripcion",
+               title=titulo,
+               orientation='h',
+               text=prop_data["porcentaje"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+               labels={'porcentaje': 'Porcentaje %', 'descripcion': 'Temas'}
+           )
+           
+           fig.update_traces(textposition="outside" if mostrar_todos else "none")
+           fig.update_layout(yaxis={'categoryorder': 'total ascending'})
+           
+           st.plotly_chart(fig, use_container_width=True)
+       else:
+           st.warning("No hay datos para mostrar")
+   
+           
+    #def section_17_proporcion_por_tema(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+    #    """17.- Proporción de Mensajes Emitidos por Fuente y Tipo de Nota por Tema"""
+    #    st.subheader("17.- Proporción de Mensajes Emitidos por Fuente y Tipo de Nota en un Lugar y Fecha Específicos")
+    #    
+    #    fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s17", global_filters)
+    #    
+    #    col1, col2, col3 = st.columns(3)
+    #    with col1:
+    #        option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s17")
+    #    with col2:
+    #        # Local location selector - independent of global filters
+    #        available_locations = self.temp_coctel_temas['lugar'].dropna().unique()
+    #        option_lugar = st.selectbox(
+    #            "Lugar", 
+    #            options=sorted(available_locations), 
+    #            key="lugar_s17"
+    #        )
+    #    with col3:
+    #        option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s17")
+    #    
+    #    temp_data = self.temp_coctel_temas[
+    #        (self.temp_coctel_temas['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_temas['fecha_registro'] <= fecha_fin) &
+    #        (self.temp_coctel_temas['lugar'] == option_lugar)
+    #    ]
+    #    
+    #    if not temp_data.empty:
+    #        prop_data = self.analytics.calculate_topic_proportion(temp_data, option_fuente, option_nota, 10)
+    #        
+    #        if not prop_data.empty:
+    #            if option_nota == 'Con coctel':
+    #                titulo = f"Proporción de mensajes emitidos con coctel por {option_fuente} en {option_lugar}"
+    #            elif option_nota == 'Sin coctel':
+    #                titulo = f"Proporción de mensajes emitidos sin coctel por {option_fuente} en {option_lugar}"
+    #            else:
+    #                titulo = f"Proporción de mensajes emitidos por {option_fuente} en {option_lugar}"
+    #            
+    #            fig = px.bar(
+    #                prop_data,
+    #                x="porcentaje",
+    #                y="descripcion",
+    #                title=titulo,
+    #                orientation='h',
+    #                text=prop_data["porcentaje"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+    #                labels={'porcentaje': 'Porcentaje %', 'descripcion': 'Temas'}
+    #            )
+    #            
+    #            fig.update_traces(textposition="outside" if mostrar_todos else "none")
+    #            fig.update_layout(yaxis={'categoryorder': 'total ascending'})
+    #            
+    #            st.plotly_chart(fig, use_container_width=True)
+    #        else:
+    #            st.warning("No hay datos para mostrar")
+    #    else:
+    #        st.warning("No hay datos para mostrar")
+    
+
+    
+
+    def section_18_tendencia_por_medio(self, global_filters: Dict[str, Any]):
+       from sections.functions.grafico18 import data_section_18_tendencia_por_medio_sql
+       """18.- Tendencia de las notas emitidas en lugar y fecha específica por fuente y tipo de nota"""
+       st.subheader("18.- Tendencia de las notas emitidas en lugar y fecha específica por fuente y tipo de nota")
+       
+       fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s18", global_filters)
+       
+       col1, col2, col3 = st.columns(3)
+       with col1:
+           option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes"), key="fuente_s18")
+       with col2:
+           # Puedes usar temp_coctel_fuente para obtener lugares
+           available_locations = self.temp_coctel_fuente['lugar'].dropna().unique()
+           option_lugar = st.selectbox(
+               "Lugar", 
+               options=sorted(available_locations), 
+               key="lugar_s18"
+           )
+       with col3:
+           option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s18")
+       
+       # Convertir fechas a string
+       fecha_inicio_str = fecha_inicio.strftime('%Y-%m-%d')
+       fecha_fin_str = fecha_fin.strftime('%Y-%m-%d')
+       
+       # Llamar función SQL
+       trend_data = data_section_18_tendencia_por_medio_sql(
+           fecha_inicio_str,
+           fecha_fin_str,
+           option_lugar,
+           option_fuente,
+           option_nota
+       )
+       
+       if not trend_data.empty:
+           if option_nota == 'Con coctel':
+               titulo = f"Tendencia de las notas emitidas con coctel por {option_fuente} en {option_lugar}"
+           elif option_nota == 'Sin coctel':
+               titulo = f"Tendencia de las notas emitidas sin coctel por {option_fuente} en {option_lugar}"
+           else:
+               titulo = f"Tendencia de las notas emitidas por {option_fuente} en {option_lugar}"
+           
+           fig = px.bar(
+               trend_data,
+               x='medio_nombre',
+               y='frecuencia',
+               color='id_posicion',
+               title=titulo,
+               barmode='stack',
+               color_discrete_map=COLOR_POSICION_DICT,
+               labels={'frecuencia': 'Frecuencia', 'medio_nombre': 'Canal/Medio', 'id_posicion': 'Posición'},
+               text='frecuencia',
+           )
+           
+           fig.update_xaxes(tickangle=45)
+           st.plotly_chart(fig, use_container_width=True)
+       else:
+           st.warning("No hay datos para mostrar")
+   
+           
     def section_18_tendencia_por_medio(self, global_filters: Dict[str, Any]):
         """18.- Tendencia de las notas emitidas en lugar y fecha específica por fuente y tipo de nota"""
         st.subheader("18.- Tendencia de las notas emitidas en lugar y fecha específica por fuente y tipo de nota")
