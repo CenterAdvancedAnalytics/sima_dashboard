@@ -1938,6 +1938,9 @@ class CoctelSections:
            else:
                titulo = f"Recuento de posiciones emitidas por actor en {option_lugar}"
            
+           # Obtener el orden correcto de los actores (de mayor a menor frecuencia)
+           actor_order = actor_data.groupby('nombre')['frecuencia'].sum().sort_values(ascending=False).index.tolist()
+           
            fig = px.bar(
                actor_data,
                x='nombre',
@@ -1947,7 +1950,8 @@ class CoctelSections:
                barmode='stack',
                color_discrete_map=COLOR_POSICION_DICT,
                labels={'frecuencia': 'Frecuencia', 'nombre': 'Actor', 'posicion': 'Posición'},
-               text='frecuencia'
+               text='frecuencia',
+               category_orders={'nombre': actor_order}
            )
            
            fig.update_xaxes(tickangle=45)
@@ -2012,87 +2016,176 @@ class CoctelSections:
     #    else:
     #        st.warning("No hay datos para mostrar")
     #
-    
+
+
     def section_21_porcentaje_medios(self, global_filters: Dict[str, Any], mostrar_todos: bool):
-        """21.- Porcentaje de cóctel de todos los medios"""
-        st.subheader("21.- Porcentaje de cóctel de todos los medios")
-        
-        # Para esta sección usamos selectores de año/mes
-        ano_actual = datetime.now().year
-        anos = list(range(ano_actual - 9, ano_actual + 1))
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            ano_inicio = st.selectbox("Año de inicio", anos, len(anos)-1, key="ano_inicio_s21")
-            mes_inicio = st.selectbox("Mes de inicio", MESES_ES, index=11, key="mes_inicio_s21")
-        with col2:
-            ano_fin = st.selectbox("Año de fin", anos, index=len(anos)-1, key="ano_fin_s21")
-            mes_fin = st.selectbox("Mes de fin", MESES_ES, index=11, key="mes_fin_s21")
-        
-        option_regiones = self.filter_manager.get_section_locations("s21", global_filters, multi=True)
-        
-        year_month_start = f"{ano_inicio}-{MESES_ES.index(mes_inicio) + 1:02d}-01"
-        year_month_end = f"{ano_fin}-{MESES_ES.index(mes_fin) + 1:02d}-01"
-        
-        if not self.temp_coctel_fuente.empty:
-            result = self.analytics.calculate_coctel_percentage_by_media(
-                self.temp_coctel_fuente, year_month_start, year_month_end
-            )
-            
-            if result.empty:
-                st.warning("No hay datos para mostrar en el período seleccionado")
-                return
-            
-            # Check if 'lugar' column exists before filtering
-            if 'lugar' not in result.columns:
-                st.error(f"❌ Column 'lugar' not found in result. Available columns: {result.columns.tolist()}")
-                return
-            
-            # Check if we have any matching regions
-            available_places = result['lugar'].unique()
-            matching_regions = [region for region in option_regiones if region in available_places]
-            
-            if not matching_regions:
-                st.warning(f"⚠️ No hay datos para las regiones seleccionadas: {option_regiones}")
-                st.info(f"💡 Regiones disponibles: {', '.join(available_places)}")
-                return
-            
-            # Filtrar por regiones seleccionadas
-            result = result[result['lugar'].isin(option_regiones)]
-            
-            if not result.empty:
-                promedios = result.groupby('Fuente')['porcentaje_coctel'].mean().to_dict()
-                
-                fig = px.bar(
-                    result,
-                    x="lugar",
-                    y="porcentaje_coctel",
-                    color="Fuente",
-                    barmode="group",
-                    title=f"Porcentaje de cóctel de todos los medios - {mes_inicio} {ano_inicio} hasta {mes_fin} {ano_fin}",
-                    labels={"lugar": "Regiones", "porcentaje_coctel": "Porcentaje de Cóctel"},
-                    text=result["porcentaje_coctel"].map("{:.1f}%".format) if mostrar_todos else None,
-                    color_discrete_map={"Radio": "blue", "Redes": "red", "TV": "gray"},
-                )
-                
-                fig.update_layout(font=dict(size=8))
-                fig.update_traces(textposition="outside" if mostrar_todos else "none")
-                
-                # Agregar líneas de promedio por fuente
-                for fuente, promedio in promedios.items():
-                    fig.add_hline(
-                        y=promedio,
-                        line_dash="dash",
-                        annotation_text=f"Promedio de {fuente}: {promedio:.2f}%",
-                        annotation_position="right",
-                        line_color={"Radio": "blue", "Redes": "orange", "TV": "gray"}[fuente],
-                    )
-                
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("No hay datos para las regiones seleccionadas después del filtrado")
-        else:
-            st.warning("No hay datos para mostrar")
+         from sections.functions.grafico21 import data_section_21_porcentaje_medios_sql, calcular_promedios_por_fuente
+         
+         """21.- Porcentaje de cóctel de todos los medios"""
+         st.subheader("21.- Porcentaje de cóctel de todos los medios")
+         
+         # Para esta sección usamos selectores de año/mes
+         ano_actual = datetime.now().year
+         anos = list(range(ano_actual - 9, ano_actual + 1))
+         
+         col1, col2 = st.columns(2)
+         with col1:
+             ano_inicio = st.selectbox("Año de inicio", anos, len(anos)-1, key="ano_inicio_s21")
+             mes_inicio = st.selectbox("Mes de inicio", MESES_ES, index=11, key="mes_inicio_s21")
+         with col2:
+             ano_fin = st.selectbox("Año de fin", anos, index=len(anos)-1, key="ano_fin_s21")
+             mes_fin = st.selectbox("Mes de fin", MESES_ES, index=11, key="mes_fin_s21")
+         
+         option_regiones = self.filter_manager.get_section_locations("s21", global_filters, multi=True)
+         
+         # Calcular fechas de inicio y fin del período
+         fecha_inicio = f"{ano_inicio}-{MESES_ES.index(mes_inicio) + 1:02d}-01"
+         # Para fecha_fin, necesitamos el último día del mes
+         import calendar
+         ultimo_dia = calendar.monthrange(ano_fin, MESES_ES.index(mes_fin) + 1)[1]
+         fecha_fin = f"{ano_fin}-{MESES_ES.index(mes_fin) + 1:02d}-{ultimo_dia:02d}"
+         
+         # Llamar a la función SQL
+         resultado = data_section_21_porcentaje_medios_sql(
+             fecha_inicio,
+             fecha_fin,
+             option_regiones
+         )
+         
+         if not resultado.empty:
+             # Calcular promedios por fuente
+             promedios = calcular_promedios_por_fuente(resultado)
+             
+             # Mapeo de colores
+             color_map = {
+                 "RADIO": "#3F6EC3",  # Azul
+                 "REDES": "#C00000",  # Rojo
+                 "TV": "#A1A1A1"      # Gris
+             }
+             
+             # Crear el gráfico de barras agrupadas
+             fig = px.bar(
+                 resultado,
+                 x="lugar",
+                 y="porcentaje_coctel",
+                 color="fuente",
+                 barmode="group",
+                 title=f"Porcentaje de cóctel de todos los medios - {mes_inicio}/{ano_inicio} hasta {mes_fin}/{ano_fin}",
+                 labels={
+                     "lugar": "Regiones", 
+                     "porcentaje_coctel": "Porcentaje de Cóctel (%)",
+                     "fuente": "Fuente"
+                 },
+                 text=resultado["porcentaje_coctel"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None,
+                 color_discrete_map=color_map,
+             )
+             
+             fig.update_layout(
+                 font=dict(size=8),
+                 xaxis_tickangle=-45
+             )
+             
+             fig.update_traces(
+                 textposition="outside" if mostrar_todos else "none"
+             )
+             
+             # Agregar líneas de promedio por fuente
+             for fuente, promedio in promedios.items():
+                 # Determinar color de la línea
+                 line_color = color_map.get(fuente, "black")
+                 
+                 fig.add_hline(
+                     y=promedio,
+                     line_dash="dash",
+                     annotation_text=f"Promedio de {fuente}: {promedio:.2f}%",
+                     annotation_position="right",
+                     line_color=line_color,
+                 )
+             
+             st.plotly_chart(fig, use_container_width=True)
+         else:
+             st.warning("No hay datos para mostrar")
+
+    #def section_21_porcentaje_medios(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+    #    """21.- Porcentaje de cóctel de todos los medios"""
+    #    st.subheader("21.- Porcentaje de cóctel de todos los medios")
+    #    
+    #    # Para esta sección usamos selectores de año/mes
+    #    ano_actual = datetime.now().year
+    #    anos = list(range(ano_actual - 9, ano_actual + 1))
+    #    
+    #    col1, col2 = st.columns(2)
+    #    with col1:
+    #        ano_inicio = st.selectbox("Año de inicio", anos, len(anos)-1, key="ano_inicio_s21")
+    #        mes_inicio = st.selectbox("Mes de inicio", MESES_ES, index=11, key="mes_inicio_s21")
+    #    with col2:
+    #        ano_fin = st.selectbox("Año de fin", anos, index=len(anos)-1, key="ano_fin_s21")
+    #        mes_fin = st.selectbox("Mes de fin", MESES_ES, index=11, key="mes_fin_s21")
+    #    
+    #    option_regiones = self.filter_manager.get_section_locations("s21", global_filters, multi=True)
+    #    
+    #    year_month_start = f"{ano_inicio}-{MESES_ES.index(mes_inicio) + 1:02d}-01"
+    #    year_month_end = f"{ano_fin}-{MESES_ES.index(mes_fin) + 1:02d}-01"
+    #    
+    #    if not self.temp_coctel_fuente.empty:
+    #        result = self.analytics.calculate_coctel_percentage_by_media(
+    #            self.temp_coctel_fuente, year_month_start, year_month_end
+    #        )
+    #        
+    #        if result.empty:
+    #            st.warning("No hay datos para mostrar en el período seleccionado")
+    #            return
+    #        
+    #        # Check if 'lugar' column exists before filtering
+    #        if 'lugar' not in result.columns:
+    #            st.error(f"❌ Column 'lugar' not found in result. Available columns: {result.columns.tolist()}")
+    #            return
+    #        
+    #        # Check if we have any matching regions
+    #        available_places = result['lugar'].unique()
+    #        matching_regions = [region for region in option_regiones if region in available_places]
+    #        
+    #        if not matching_regions:
+    #            st.warning(f"⚠️ No hay datos para las regiones seleccionadas: {option_regiones}")
+    #            st.info(f"💡 Regiones disponibles: {', '.join(available_places)}")
+    #            return
+    #        
+    #        # Filtrar por regiones seleccionadas
+    #        result = result[result['lugar'].isin(option_regiones)]
+    #        
+    #        if not result.empty:
+    #            promedios = result.groupby('Fuente')['porcentaje_coctel'].mean().to_dict()
+    #            
+    #            fig = px.bar(
+    #                result,
+    #                x="lugar",
+    #                y="porcentaje_coctel",
+    #                color="Fuente",
+    #                barmode="group",
+    #                title=f"Porcentaje de cóctel de todos los medios - {mes_inicio} {ano_inicio} hasta {mes_fin} {ano_fin}",
+    #                labels={"lugar": "Regiones", "porcentaje_coctel": "Porcentaje de Cóctel"},
+    #                text=result["porcentaje_coctel"].map("{:.1f}%".format) if mostrar_todos else None,
+    #                color_discrete_map={"Radio": "blue", "Redes": "red", "TV": "gray"},
+    #            )
+    #            
+    #            fig.update_layout(font=dict(size=8))
+    #            fig.update_traces(textposition="outside" if mostrar_todos else "none")
+    #            
+    #            # Agregar líneas de promedio por fuente
+    #            for fuente, promedio in promedios.items():
+    #                fig.add_hline(
+    #                    y=promedio,
+    #                    line_dash="dash",
+    #                    annotation_text=f"Promedio de {fuente}: {promedio:.2f}%",
+    #                    annotation_position="right",
+    #                    line_color={"Radio": "blue", "Redes": "orange", "TV": "gray"}[fuente],
+    #                )
+    #            
+    #            st.plotly_chart(fig, use_container_width=True)
+    #        else:
+    #            st.warning("No hay datos para las regiones seleccionadas después del filtrado")
+    #    else:
+    #        st.warning("No hay datos para mostrar")
     
     def section_22_ultimos_3_meses(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """22.- Porcentaje de cóctel en los últimos 3 meses por fuente"""
