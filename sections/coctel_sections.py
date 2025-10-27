@@ -1852,101 +1852,166 @@ class CoctelSections:
           else:
               st.warning("No hay datos para mostrar")
               
-    def section_19_notas_tiempo_posicion(self, global_filters: Dict[str, Any]):
-        """19.- Notas emitidas en un rango de tiempo segun posicion y coctel"""
-        st.subheader("19.- Notas emitidas en un rango de tiempo segun posicion y coctel")
-        
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s19", global_filters)
-        option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s19")
-        
-        temp_data = self.temp_coctel_temas[
-            (self.temp_coctel_temas['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_temas['fecha_registro'] <= fecha_fin)
-        ]
-        
-        if not temp_data.empty:
-            time_data = self.analytics.calculate_notes_by_time_position(temp_data, option_nota)
-            
-            if not time_data.empty:
-                if option_nota == 'Con coctel':
-                    titulo = f"Notas emitidas con coctel entre {fecha_inicio.strftime('%d-%m-%Y')} y {fecha_fin.strftime('%d-%m-%Y')} según posición"
-                elif option_nota == 'Sin coctel':
-                    titulo = f"Notas emitidas sin coctel entre {fecha_inicio.strftime('%d-%m-%Y')} y {fecha_fin.strftime('%d-%m-%Y')} según posición"
-                else:
-                    titulo = f"Notas emitidas entre {fecha_inicio.strftime('%d-%m-%Y')} y {fecha_fin.strftime('%d-%m-%Y')} según posición"
-                
-                fig = px.bar(
-                    time_data,
-                    x='id_posicion',
-                    y='frecuencia',
-                    title=titulo,
-                    labels={'frecuencia': 'Frecuencia', 'id_posicion': 'Posición'},
-                    color='id_posicion',
-                    color_discrete_map=COLOR_POSICION_DICT,
-                    text='frecuencia'
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("No hay datos para mostrar")
-        else:
-            st.warning("No hay datos para mostrar")
+    #def section_19_notas_tiempo_posicion(self, global_filters: Dict[str, Any]):
+    #    """19.- Notas emitidas en un rango de tiempo segun posicion y coctel"""
+    #    st.subheader("19.- Notas emitidas en un rango de tiempo segun posicion y coctel")
+    #    
+    #    fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s19", global_filters)
+    #    option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s19")
+    #    
+    #    temp_data = self.temp_coctel_temas[
+    #        (self.temp_coctel_temas['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_temas['fecha_registro'] <= fecha_fin)
+    #    ]
+    #    
+    #    if not temp_data.empty:
+    #        time_data = self.analytics.calculate_notes_by_time_position(temp_data, option_nota)
+    #        
+    #        if not time_data.empty:
+    #            if option_nota == 'Con coctel':
+    #                titulo = f"Notas emitidas con coctel entre {fecha_inicio.strftime('%d-%m-%Y')} y {fecha_fin.strftime('%d-%m-%Y')} según posición"
+    #            elif option_nota == 'Sin coctel':
+    #                titulo = f"Notas emitidas sin coctel entre {fecha_inicio.strftime('%d-%m-%Y')} y {fecha_fin.strftime('%d-%m-%Y')} según posición"
+    #            else:
+    #                titulo = f"Notas emitidas entre {fecha_inicio.strftime('%d-%m-%Y')} y {fecha_fin.strftime('%d-%m-%Y')} según posición"
+    #            
+    #            fig = px.bar(
+    #                time_data,
+    #                x='id_posicion',
+    #                y='frecuencia',
+    #                title=titulo,
+    #                labels={'frecuencia': 'Frecuencia', 'id_posicion': 'Posición'},
+    #                color='id_posicion',
+    #                color_discrete_map=COLOR_POSICION_DICT,
+    #                text='frecuencia'
+    #            )
+    #            
+    #            st.plotly_chart(fig, use_container_width=True)
+    #        else:
+    #            st.warning("No hay datos para mostrar")
+    #    else:
+    #        st.warning("No hay datos para mostrar")
     
+
+    
+
     def section_20_actores_posiciones(self, global_filters: Dict[str, Any]):
-        """20.- Recuento de posiciones emitidas por actor en lugar y fecha específica"""
-        st.subheader("20.- Recuento de posiciones emitidas por actor en lugar y fecha específica")
-        
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s20", global_filters)
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s20")
-        with col2:
-            # Local location selector - independent of global filters
-            available_locations = self.temp_coctel_fuente_actores['lugar'].dropna().unique()
-            option_lugar = st.selectbox(
-                "Lugar", 
-                options=sorted(available_locations), 
-                key="lugar_s20"
-            )
-        with col3:
-            option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s20")
-        
-        temp_data = self.temp_coctel_fuente_actores[
-            (self.temp_coctel_fuente_actores['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente_actores['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente_actores['lugar'] == option_lugar)
-        ]
-        
-        if not temp_data.empty:
-            actor_data = self.analytics.calculate_actor_positions(temp_data, option_fuente, option_nota, 10)
-            
-            if not actor_data.empty:
-                if option_nota == 'Con coctel':
-                    titulo = f"Recuento de posiciones emitidas por actor en {option_lugar}. Notas con coctel"
-                elif option_nota == 'Sin coctel':
-                    titulo = f"Recuento de posiciones emitidas por actor en {option_lugar}. Notas sin coctel"
-                else:
-                    titulo = f"Recuento de posiciones emitidas por actor en {option_lugar}"
-                
-                fig = px.bar(
-                    actor_data,
-                    x='nombre',
-                    y='frecuencia',
-                    title=titulo,
-                    color='posicion',
-                    barmode='stack',
-                    color_discrete_map=COLOR_POSICION_DICT,
-                    labels={'frecuencia': 'Frecuencia', 'nombre': 'Actor', 'posicion': 'Posición'},
-                    text='frecuencia'
-                )
-                
-                fig.update_xaxes(tickangle=45)
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("No hay datos para mostrar")
-        else:
-            st.warning("No hay datos para mostrar")
+       
+       from sections.functions.grafico20 import data_section_20_actores_posiciones_sql
+       """20.- Recuento de posiciones emitidas por actor en lugar y fecha específica"""
+       st.subheader("20.- Recuento de posiciones emitidas por actor en lugar y fecha específica")
+       
+       fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s20", global_filters)
+       
+       col1, col2, col3 = st.columns(3)
+       with col1:
+           option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s20")
+       with col2:
+           available_locations = self.temp_coctel_fuente_actores['lugar'].dropna().unique()
+           option_lugar = st.selectbox(
+               "Lugar", 
+               options=sorted(available_locations), 
+               key="lugar_s20"
+           )
+       with col3:
+           option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s20")
+       
+       # Convertir fechas a string
+       fecha_inicio_str = fecha_inicio.strftime('%Y-%m-%d')
+       fecha_fin_str = fecha_fin.strftime('%Y-%m-%d')
+       
+       # Llamar función SQL
+       actor_data = data_section_20_actores_posiciones_sql(
+           fecha_inicio_str,
+           fecha_fin_str,
+           option_lugar,
+           option_fuente,
+           option_nota,
+           top_n=10
+       )
+       
+       if not actor_data.empty:
+           if option_nota == 'Con coctel':
+               titulo = f"Recuento de posiciones emitidas por actor en {option_lugar}. Notas con coctel"
+           elif option_nota == 'Sin coctel':
+               titulo = f"Recuento de posiciones emitidas por actor en {option_lugar}. Notas sin coctel"
+           else:
+               titulo = f"Recuento de posiciones emitidas por actor en {option_lugar}"
+           
+           fig = px.bar(
+               actor_data,
+               x='nombre',
+               y='frecuencia',
+               title=titulo,
+               color='posicion',
+               barmode='stack',
+               color_discrete_map=COLOR_POSICION_DICT,
+               labels={'frecuencia': 'Frecuencia', 'nombre': 'Actor', 'posicion': 'Posición'},
+               text='frecuencia'
+           )
+           
+           fig.update_xaxes(tickangle=45)
+           st.plotly_chart(fig, use_container_width=True)
+       else:
+           st.warning("No hay datos para mostrar")
+   
+           
+    #def section_20_actores_posiciones(self, global_filters: Dict[str, Any]):
+    #    """20.- Recuento de posiciones emitidas por actor en lugar y fecha específica"""
+    #    st.subheader("20.- Recuento de posiciones emitidas por actor en lugar y fecha específica")
+    #    
+    #    fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s20", global_filters)
+    #    
+    #    col1, col2, col3 = st.columns(3)
+    #    with col1:
+    #        option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s20")
+    #    with col2:
+    #        # Local location selector - independent of global filters
+    #        available_locations = self.temp_coctel_fuente_actores['lugar'].dropna().unique()
+    #        option_lugar = st.selectbox(
+    #            "Lugar", 
+    #            options=sorted(available_locations), 
+    #            key="lugar_s20"
+    #        )
+    #    with col3:
+    #        option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s20")
+    #    
+    #    temp_data = self.temp_coctel_fuente_actores[
+    #        (self.temp_coctel_fuente_actores['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_fuente_actores['fecha_registro'] <= fecha_fin) &
+    #        (self.temp_coctel_fuente_actores['lugar'] == option_lugar)
+    #    ]
+    #    
+    #    if not temp_data.empty:
+    #        actor_data = self.analytics.calculate_actor_positions(temp_data, option_fuente, option_nota, 10)
+    #        
+    #        if not actor_data.empty:
+    #            if option_nota == 'Con coctel':
+    #                titulo = f"Recuento de posiciones emitidas por actor en {option_lugar}. Notas con coctel"
+    #            elif option_nota == 'Sin coctel':
+    #                titulo = f"Recuento de posiciones emitidas por actor en {option_lugar}. Notas sin coctel"
+    #            else:
+    #                titulo = f"Recuento de posiciones emitidas por actor en {option_lugar}"
+    #            
+    #            fig = px.bar(
+    #                actor_data,
+    #                x='nombre',
+    #                y='frecuencia',
+    #                title=titulo,
+    #                color='posicion',
+    #                barmode='stack',
+    #                color_discrete_map=COLOR_POSICION_DICT,
+    #                labels={'frecuencia': 'Frecuencia', 'nombre': 'Actor', 'posicion': 'Posición'},
+    #                text='frecuencia'
+    #            )
+    #            
+    #            fig.update_xaxes(tickangle=45)
+    #            st.plotly_chart(fig, use_container_width=True)
+    #        else:
+    #            st.warning("No hay datos para mostrar")
+    #    else:
+    #        st.warning("No hay datos para mostrar")
+    #
     
     def section_21_porcentaje_medios(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """21.- Porcentaje de cóctel de todos los medios"""
