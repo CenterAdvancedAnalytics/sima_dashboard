@@ -1732,69 +1732,126 @@ class CoctelSections:
            st.warning("No hay datos para mostrar")
    
            
-    def section_18_tendencia_por_medio(self, global_filters: Dict[str, Any]):
-        """18.- Tendencia de las notas emitidas en lugar y fecha específica por fuente y tipo de nota"""
-        st.subheader("18.- Tendencia de las notas emitidas en lugar y fecha específica por fuente y tipo de nota")
-        
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s18", global_filters)
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes"), key="fuente_s18")
-        with col2:
-            # Local location selector - independent of global filters
-            # Get available locations from both dataframes
-            available_locations_programas = self.temp_coctel_fuente_programas['lugar'].dropna().unique()
-            available_locations_fb = self.temp_coctel_fuente_fb['lugar'].dropna().unique()
-            all_locations = sorted(set(list(available_locations_programas) + list(available_locations_fb)))
-            
-            option_lugar = st.selectbox(
-                "Lugar", 
-                options=all_locations, 
-                key="lugar_s18"
-            )
-        with col3:
-            option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s18")
-        
-        temp_programas = self.temp_coctel_fuente_programas[
-            (self.temp_coctel_fuente_programas['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente_programas['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente_programas['lugar'] == option_lugar)
-        ]
-        
-        temp_fb = self.temp_coctel_fuente_fb[
-            (self.temp_coctel_fuente_fb['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_fuente_fb['fecha_registro'] <= fecha_fin) &
-            (self.temp_coctel_fuente_fb['lugar'] == option_lugar)
-        ]
-        
-        trend_data = self.analytics.calculate_notes_trend_by_medium(temp_programas, temp_fb, option_fuente, option_nota)
-        
-        if not trend_data.empty:
-            if option_nota == 'Con coctel':
-                titulo = f"Tendencia de las notas emitidas con coctel por {option_fuente} en {option_lugar}"
-            elif option_nota == 'Sin coctel':
-                titulo = f"Tendencia de las notas emitidas sin coctel por {option_fuente} en {option_lugar}"
-            else:
-                titulo = f"Tendencia de las notas emitidas por {option_fuente} en {option_lugar}"
-            
-            fig = px.bar(
-                trend_data,
-                x='medio_nombre',
-                y='frecuencia',
-                color='id_posicion',
-                title=titulo,
-                barmode='stack',
-                color_discrete_map=COLOR_POSICION_DICT,
-                labels={'frecuencia': 'Frecuencia', 'medio_nombre': 'Canal/Medio', 'id_posicion': 'Posición'},
-                text='frecuencia',
-            )
-            
-            fig.update_xaxes(tickangle=45)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("No hay datos para mostrar")
-    
+    #def section_18_tendencia_por_medio(self, global_filters: Dict[str, Any]):
+    #    """18.- Tendencia de las notas emitidas en lugar y fecha específica por fuente y tipo de nota"""
+    #    st.subheader("18.- Tendencia de las notas emitidas en lugar y fecha específica por fuente y tipo de nota")
+    #    
+    #    fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s18", global_filters)
+    #    
+    #    col1, col2, col3 = st.columns(3)
+    #    with col1:
+    #        option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes"), key="fuente_s18")
+    #    with col2:
+    #        # Local location selector - independent of global filters
+    #        # Get available locations from both dataframes
+    #        available_locations_programas = self.temp_coctel_fuente_programas['lugar'].dropna().unique()
+    #        available_locations_fb = self.temp_coctel_fuente_fb['lugar'].dropna().unique()
+    #        all_locations = sorted(set(list(available_locations_programas) + list(available_locations_fb)))
+    #        
+    #        option_lugar = st.selectbox(
+    #            "Lugar", 
+    #            options=all_locations, 
+    #            key="lugar_s18"
+    #        )
+    #    with col3:
+    #        option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s18")
+    #    
+    #    temp_programas = self.temp_coctel_fuente_programas[
+    #        (self.temp_coctel_fuente_programas['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_fuente_programas['fecha_registro'] <= fecha_fin) &
+    #        (self.temp_coctel_fuente_programas['lugar'] == option_lugar)
+    #    ]
+    #    
+    #    temp_fb = self.temp_coctel_fuente_fb[
+    #        (self.temp_coctel_fuente_fb['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_fuente_fb['fecha_registro'] <= fecha_fin) &
+    #        (self.temp_coctel_fuente_fb['lugar'] == option_lugar)
+    #    ]
+    #    
+    #    trend_data = self.analytics.calculate_notes_trend_by_medium(temp_programas, temp_fb, option_fuente, option_nota)
+    #    
+    #    if not trend_data.empty:
+    #        if option_nota == 'Con coctel':
+    #            titulo = f"Tendencia de las notas emitidas con coctel por {option_fuente} en {option_lugar}"
+    #        elif option_nota == 'Sin coctel':
+    #            titulo = f"Tendencia de las notas emitidas sin coctel por {option_fuente} en {option_lugar}"
+    #        else:
+    #            titulo = f"Tendencia de las notas emitidas por {option_fuente} en {option_lugar}"
+    #        
+    #        fig = px.bar(
+    #            trend_data,
+    #            x='medio_nombre',
+    #            y='frecuencia',
+    #            color='id_posicion',
+    #            title=titulo,
+    #            barmode='stack',
+    #            color_discrete_map=COLOR_POSICION_DICT,
+    #            labels={'frecuencia': 'Frecuencia', 'medio_nombre': 'Canal/Medio', 'id_posicion': 'Posición'},
+    #            text='frecuencia',
+    #        )
+    #        
+    #        fig.update_xaxes(tickangle=45)
+    #        st.plotly_chart(fig, use_container_width=True)
+    #    else:
+    #        st.warning("No hay datos para mostrar")
+    #
+
+   
+
+# ====================================
+# PASO 2: Modificar el método section_19_notas_tiempo_posicion
+# ====================================
+
+    def section_19_notas_tiempo_posicion(self, global_filters: Dict[str, Any]):
+          from sections.functions.grafico19 import data_section_19_notas_tiempo_posicion_sql
+          """19.- Notas emitidas en un rango de tiempo segun posicion y coctel"""
+          st.subheader("19.- Notas emitidas en un rango de tiempo segun posicion y coctel")
+          
+          fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s19", global_filters)
+          option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s19")
+          
+          # ====================================
+          # CAMBIO PRINCIPAL: Usar la función SQL
+          # ====================================
+          
+          # Convertir fechas a string formato YYYY-MM-DD
+          fecha_inicio_str = fecha_inicio.strftime('%Y-%m-%d')
+          fecha_fin_str = fecha_fin.strftime('%Y-%m-%d')
+          
+          # Llamar a la función SQL
+          time_data = data_section_19_notas_tiempo_posicion_sql(
+              fecha_inicio_str,
+              fecha_fin_str,
+              option_nota
+          )
+          
+          # ====================================
+          # RESTO DEL CÓDIGO IGUAL (visualización)
+          # ====================================
+          
+          if not time_data.empty:
+              if option_nota == 'Con coctel':
+                  titulo = f"Notas emitidas con coctel entre {fecha_inicio.strftime('%d-%m-%Y')} y {fecha_fin.strftime('%d-%m-%Y')} según posición"
+              elif option_nota == 'Sin coctel':
+                  titulo = f"Notas emitidas sin coctel entre {fecha_inicio.strftime('%d-%m-%Y')} y {fecha_fin.strftime('%d-%m-%Y')} según posición"
+              else:
+                  titulo = f"Notas emitidas entre {fecha_inicio.strftime('%d-%m-%Y')} y {fecha_fin.strftime('%d-%m-%Y')} según posición"
+              
+              fig = px.bar(
+                  time_data,
+                  x='id_posicion',
+                  y='frecuencia',
+                  title=titulo,
+                  labels={'frecuencia': 'Frecuencia', 'id_posicion': 'Posición'},
+                  color='id_posicion',
+                  color_discrete_map=COLOR_POSICION_DICT,
+                  text='frecuencia'
+              )
+              
+              st.plotly_chart(fig, use_container_width=True)
+          else:
+              st.warning("No hay datos para mostrar")
+              
     def section_19_notas_tiempo_posicion(self, global_filters: Dict[str, Any]):
         """19.- Notas emitidas en un rango de tiempo segun posicion y coctel"""
         st.subheader("19.- Notas emitidas en un rango de tiempo segun posicion y coctel")
