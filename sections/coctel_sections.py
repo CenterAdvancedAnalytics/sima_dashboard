@@ -2188,88 +2188,180 @@ class CoctelSections:
     #        st.warning("No hay datos para mostrar")
     
     def section_22_ultimos_3_meses(self, global_filters: Dict[str, Any], mostrar_todos: bool):
-        """22.- Porcentaje de cóctel en los últimos 3 meses por fuente"""
-        st.subheader("22.- Porcentaje de cóctel en los últimos 3 meses por fuente")
-        
-        ano_actual = datetime.now().year
-        anos = list(range(ano_actual - 9, ano_actual + 1))
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            ano_fin = st.selectbox("Año de referencia", anos, index=len(anos)-1, key="ano_fin_s22")
-            mes_fin = st.selectbox("Mes de referencia", MESES_ES, index=11, key="mes_fin_s22")
-        with col2:
-            fuente = st.selectbox("Fuente", ['Radio', 'Redes', 'TV'], key="fuente_s22")
-        
-        option_regiones = self.filter_manager.get_section_locations("s22", global_filters, multi=True)
-        
-        end_date = f"{ano_fin}-{MESES_ES.index(mes_fin) + 1:02d}-01"
-        
-        if not self.temp_coctel_fuente.empty:
-            result = self.analytics.calculate_last_3_months_coctel(
-                self.temp_coctel_fuente, end_date, fuente
-            )
-            
-            if result.empty:
-                st.warning("No hay datos para mostrar en el período seleccionado")
-                return
-            
-            # Check if 'lugar' column exists before filtering
-            if 'lugar' not in result.columns:
-                st.error(f"❌ Column 'lugar' not found in result. Available columns: {result.columns.tolist()}")
-                return
-            
-            # Filtrar por regiones seleccionadas
-            result = result[result['lugar'].isin(option_regiones)]
-            
-            if result.empty:
-                st.warning("No hay datos para mostrar en las regiones seleccionadas")
-                return
-            
-            # Check if 'mes' column exists
-            if 'mes' not in result.columns:
-                st.error(f"❌ Column 'mes' not found in result. Available columns: {result.columns.tolist()}")
-                return
-            
-            unique_months = result['mes'].unique()
-            
-            # Check if we have any months data
-            if len(unique_months) == 0:
-                st.warning("No hay datos de meses disponibles para la selección actual.")
-                return
-            
-            if len(unique_months) >= 3:
-                color_mapping = {
-                    unique_months[-3]: "lightblue",
-                    unique_months[-2]: "cornflowerblue",
-                    unique_months[-1]: "navy"
-                }
-            elif len(unique_months) == 2:
-                color_mapping = {
-                    unique_months[-2]: "lightblue",
-                    unique_months[-1]: "navy"
-                }
-            elif len(unique_months) == 1:
-                color_mapping = {unique_months[-1]: "navy"}
-            
-            fig = px.bar(
-                result,
-                x="lugar",
-                y="porcentaje_coctel",
-                color="mes",
-                barmode="group",
-                title=f"Porcentaje de cóctel {fuente} - Últimos 3 meses",
-                labels={"lugar": "Región", "porcentaje_coctel": "Porcentaje de Cóctel", "mes": "Mes"},
-                color_discrete_map=color_mapping,
-                text=result["porcentaje_coctel"].map("{:.1f}%".format) if mostrar_todos else None
-            )
-            
-            fig.update_layout(font=dict(size=15))
-            fig.update_traces(textposition="outside" if mostrar_todos else "none")
-            
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("No hay datos para mostrar")
+       from sections.functions.grafico22 import data_section_22_ultimos_3_meses_sql
+       
+       """22.- Porcentaje de cóctel en los últimos 3 meses por fuente"""
+       st.subheader("22.- Porcentaje de cóctel en los últimos 3 meses por fuente")
+       
+       ano_actual = datetime.now().year
+       anos = list(range(ano_actual - 9, ano_actual + 1))
+       
+       col1, col2 = st.columns(2)
+       with col1:
+           ano_fin = st.selectbox("Año de referencia", anos, index=len(anos)-1, key="ano_fin_s22")
+           mes_fin = st.selectbox("Mes de referencia", MESES_ES, index=11, key="mes_fin_s22")
+       with col2:
+           fuente = st.selectbox("Fuente", ['Radio', 'Redes', 'TV'], key="fuente_s22")
+       
+       option_regiones = self.filter_manager.get_section_locations("s22", global_filters, multi=True)
+       
+       # Convertir índice de mes a número (MESES_ES es 0-indexed, necesitamos 1-12)
+       mes_fin_numero = MESES_ES.index(mes_fin) + 1
+       
+       # Llamar a la función SQL
+       resultado = data_section_22_ultimos_3_meses_sql(
+           ano_fin,
+           mes_fin_numero,
+           option_regiones,
+           fuente
+       )
+       
+       if not resultado.empty:
+           # Verificar que tengamos meses únicos
+           unique_months = resultado['mes'].unique()
+           
+           if len(unique_months) == 0:
+               st.warning("No hay datos de meses disponibles para la selección actual.")
+               return
+           
+           # Mapeo de colores por mes (del más antiguo al más reciente)
+           if len(unique_months) >= 3:
+               color_mapping = {
+                   unique_months[0]: "lightblue",      # Mes más antiguo
+                   unique_months[1]: "cornflowerblue", # Mes medio
+                   unique_months[2]: "navy"            # Mes más reciente
+               }
+           elif len(unique_months) == 2:
+               color_mapping = {
+                   unique_months[0]: "lightblue",
+                   unique_months[1]: "navy"
+               }
+           elif len(unique_months) == 1:
+               color_mapping = {unique_months[0]: "navy"}
+           else:
+               color_mapping = {}
+           
+           # Crear el gráfico de barras agrupadas
+           fig = px.bar(
+               resultado,
+               x="lugar",
+               y="porcentaje_coctel",
+               color="mes",
+               barmode="group",
+               title=f"Porcentaje de cóctel {fuente} - Últimos 3 meses (hasta {mes_fin} {ano_fin})",
+               labels={
+                   "lugar": "Región", 
+                   "porcentaje_coctel": "Porcentaje de Cóctel (%)", 
+                   "mes": "Mes"
+               },
+               color_discrete_map=color_mapping,
+               text=resultado["porcentaje_coctel"].map(lambda x: f"{x:.1f}%") if mostrar_todos else None
+           )
+           
+           fig.update_layout(
+               font=dict(size=15),
+               xaxis_tickangle=-45
+           )
+           
+           fig.update_traces(
+               textposition="outside" if mostrar_todos else "none"
+           )
+           
+           st.plotly_chart(fig, use_container_width=True)
+           
+           # Mostrar información adicional
+           meses_mostrados = ', '.join(unique_months)
+           st.caption(f"📊 Mostrando datos de: {meses_mostrados}")
+           
+       else:
+           st.warning("No hay datos para mostrar en la selección actual.")
+   
+   
+   
+
+    #def section_22_ultimos_3_meses(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+    #    """22.- Porcentaje de cóctel en los últimos 3 meses por fuente"""
+    #    st.subheader("22.- Porcentaje de cóctel en los últimos 3 meses por fuente")
+    #    
+    #    ano_actual = datetime.now().year
+    #    anos = list(range(ano_actual - 9, ano_actual + 1))
+    #    
+    #    col1, col2 = st.columns(2)
+    #    with col1:
+    #        ano_fin = st.selectbox("Año de referencia", anos, index=len(anos)-1, key="ano_fin_s22")
+    #        mes_fin = st.selectbox("Mes de referencia", MESES_ES, index=11, key="mes_fin_s22")
+    #    with col2:
+    #        fuente = st.selectbox("Fuente", ['Radio', 'Redes', 'TV'], key="fuente_s22")
+    #    
+    #    option_regiones = self.filter_manager.get_section_locations("s22", global_filters, multi=True)
+    #    
+    #    end_date = f"{ano_fin}-{MESES_ES.index(mes_fin) + 1:02d}-01"
+    #    
+    #    if not self.temp_coctel_fuente.empty:
+    #        result = self.analytics.calculate_last_3_months_coctel(
+    #            self.temp_coctel_fuente, end_date, fuente
+    #        )
+    #        
+    #        if result.empty:
+    #            st.warning("No hay datos para mostrar en el período seleccionado")
+    #            return
+    #        
+    #        # Check if 'lugar' column exists before filtering
+    #        if 'lugar' not in result.columns:
+    #            st.error(f"❌ Column 'lugar' not found in result. Available columns: {result.columns.tolist()}")
+    #            return
+    #        
+    #        # Filtrar por regiones seleccionadas
+    #        result = result[result['lugar'].isin(option_regiones)]
+    #        
+    #        if result.empty:
+    #            st.warning("No hay datos para mostrar en las regiones seleccionadas")
+    #            return
+    #        
+    #        # Check if 'mes' column exists
+    #        if 'mes' not in result.columns:
+    #            st.error(f"❌ Column 'mes' not found in result. Available columns: {result.columns.tolist()}")
+    #            return
+    #        
+    #        unique_months = result['mes'].unique()
+    #        
+    #        # Check if we have any months data
+    #        if len(unique_months) == 0:
+    #            st.warning("No hay datos de meses disponibles para la selección actual.")
+    #            return
+    #        
+    #        if len(unique_months) >= 3:
+    #            color_mapping = {
+    #                unique_months[-3]: "lightblue",
+    #                unique_months[-2]: "cornflowerblue",
+    #                unique_months[-1]: "navy"
+    #            }
+    #        elif len(unique_months) == 2:
+    #            color_mapping = {
+    #                unique_months[-2]: "lightblue",
+    #                unique_months[-1]: "navy"
+    #            }
+    #        elif len(unique_months) == 1:
+    #            color_mapping = {unique_months[-1]: "navy"}
+    #        
+    #        fig = px.bar(
+    #            result,
+    #            x="lugar",
+    #            y="porcentaje_coctel",
+    #            color="mes",
+    #            barmode="group",
+    #            title=f"Porcentaje de cóctel {fuente} - Últimos 3 meses",
+    #            labels={"lugar": "Región", "porcentaje_coctel": "Porcentaje de Cóctel", "mes": "Mes"},
+    #            color_discrete_map=color_mapping,
+    #            text=result["porcentaje_coctel"].map("{:.1f}%".format) if mostrar_todos else None
+    #        )
+    #        
+    #        fig.update_layout(font=dict(size=15))
+    #        fig.update_traces(textposition="outside" if mostrar_todos else "none")
+    #        
+    #        st.plotly_chart(fig, use_container_width=True)
+    #    else:
+    #        st.warning("No hay datos para mostrar")
     '''
     def section_23_evolucion_mensual(self, global_filters: Dict[str, Any], mostrar_todos: bool):
         """23.- Gráfico Mensual Lineal sobre la evolución de Radio, Redes y TV"""
@@ -2394,142 +2486,289 @@ class CoctelSections:
                st.warning("No hay datos para mostrar el gráfico")
        else:
            st.warning("No hay datos para mostrar")
+   
     def section_24_mensajes_fuerza(self, global_filters: Dict[str, Any], mostrar_todos: bool):
-        """24.- Porcentaje de cocteles por mensajes fuerza"""
-        st.subheader("24.- Porcentaje de cocteles por mensajes fuerza")
-        
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s24", global_filters)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s24")
-        with col2:
-            option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s24")
-        
-        temp_data = self.temp_coctel_completo[
-            (self.temp_coctel_completo['fecha_registro'] >= fecha_inicio) &
-            (self.temp_coctel_completo['fecha_registro'] <= fecha_fin)
-        ]
-        
-        if not temp_data.empty:
-            message_data = self.analytics.calculate_coctel_by_message_force(temp_data, option_fuente, option_nota)
-            
-            if not message_data.empty:
-                if option_nota == "Con coctel":
-                    titulo = "Porcentaje de notas por mensaje de fuerza con coctel"
-                elif option_nota == "Sin coctel":
-                    titulo = "Porcentaje de notas por mensaje de fuerza sin coctel"
-                else:
-                    titulo = "Porcentaje de notas por mensaje de fuerza"
-                
-                fig = px.bar(
-                    message_data,
-                    x='coctel',
-                    y='mensaje_fuerza',
-                    orientation='h',
-                    text=message_data.apply(lambda row: f"{row['coctel']} ({row['porcentaje']:.1f}%)", axis=1) if mostrar_todos else None,
-                    labels={'coctel': '', 'mensaje_fuerza': ''},
-                    title=titulo,
-                    color_discrete_sequence=['red']
-                )
-                
-                fig.update_layout(font=dict(size=8))
-                fig.update_traces(textposition="outside" if mostrar_todos else "none")
-                
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("No hay datos para mostrar")
-        else:
-            st.warning("No hay datos para mostrar")
+       from sections.functions.grafico24 import data_section_24_mensajes_fuerza_sql
+       
+       """24.- Porcentaje de cocteles por mensajes fuerza"""
+       st.subheader("24.- Porcentaje de cocteles por mensajes fuerza")
+       
+       fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s24", global_filters)
+       
+       col1, col2 = st.columns(2)
+       with col1:
+           option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s24")
+       with col2:
+           option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s24")
+       
+       # Convertir fechas a string formato YYYY-MM-DD
+       fecha_inicio_str = fecha_inicio.strftime('%Y-%m-%d')
+       fecha_fin_str = fecha_fin.strftime('%Y-%m-%d')
+       
+       # Llamar a la función SQL
+       message_data = data_section_24_mensajes_fuerza_sql(
+           fecha_inicio_str,
+           fecha_fin_str,
+           option_fuente,
+           option_nota
+       )
+       
+       if not message_data.empty:
+           # Determinar título
+           if option_nota == "Con coctel":
+               titulo = "Porcentaje de notas por mensaje de fuerza con coctel"
+           elif option_nota == "Sin coctel":
+               titulo = "Porcentaje de notas por mensaje de fuerza sin coctel"
+           else:
+               titulo = "Porcentaje de notas por mensaje de fuerza"
+           
+           # Crear gráfico de barras horizontales
+           fig = px.bar(
+               message_data,
+               x='coctel',
+               y='mensaje_fuerza',
+               orientation='h',
+               text=message_data.apply(lambda row: f"{row['coctel']} ({row['porcentaje']:.1f}%)", axis=1) if mostrar_todos else None,
+               labels={'coctel': '', 'mensaje_fuerza': ''},
+               title=titulo,
+               color_discrete_sequence=['red']
+           )
+           
+           fig.update_layout(font=dict(size=8))
+           fig.update_traces(textposition="outside" if mostrar_todos else "none")
+           
+           st.plotly_chart(fig, use_container_width=True)
+       else:
+           st.warning("No hay datos para mostrar")
+   
+   
+   
+   
+    #def section_24_mensajes_fuerza(self, global_filters: Dict[str, Any], mostrar_todos: bool):
+    #    """24.- Porcentaje de cocteles por mensajes fuerza"""
+    #    st.subheader("24.- Porcentaje de cocteles por mensajes fuerza")
+    #    
+    #    fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s24", global_filters)
+    #    
+    #    col1, col2 = st.columns(2)
+    #    with col1:
+    #        option_fuente = st.selectbox("Fuente", ("Radio", "TV", "Redes", "Todos"), key="fuente_s24")
+    #    with col2:
+    #        option_nota = st.selectbox("Nota", ("Con coctel", "Sin coctel", "Todos"), key="nota_s24")
+    #    
+    #    temp_data = self.temp_coctel_completo[
+    #        (self.temp_coctel_completo['fecha_registro'] >= fecha_inicio) &
+    #        (self.temp_coctel_completo['fecha_registro'] <= fecha_fin)
+    #    ]
+    #    
+    #    if not temp_data.empty:
+    #        message_data = self.analytics.calculate_coctel_by_message_force(temp_data, option_fuente, option_nota)
+    #        
+    #        if not message_data.empty:
+    #            if option_nota == "Con coctel":
+    #                titulo = "Porcentaje de notas por mensaje de fuerza con coctel"
+    #            elif option_nota == "Sin coctel":
+    #                titulo = "Porcentaje de notas por mensaje de fuerza sin coctel"
+    #            else:
+    #                titulo = "Porcentaje de notas por mensaje de fuerza"
+    #            
+    #            fig = px.bar(
+    #                message_data,
+    #                x='coctel',
+    #                y='mensaje_fuerza',
+    #                orientation='h',
+    #                text=message_data.apply(lambda row: f"{row['coctel']} ({row['porcentaje']:.1f}%)", axis=1) if mostrar_todos else None,
+    #                labels={'coctel': '', 'mensaje_fuerza': ''},
+    #                title=titulo,
+    #                color_discrete_sequence=['red']
+    #            )
+    #            
+    #            fig.update_layout(font=dict(size=8))
+    #            fig.update_traces(textposition="outside" if mostrar_todos else "none")
+    #            
+    #            st.plotly_chart(fig, use_container_width=True)
+    #        else:
+    #            st.warning("No hay datos para mostrar")
+    #    else:
+    #        st.warning("No hay datos para mostrar")
     
+
     def section_25_impactos_programa(self, global_filters: Dict[str, Any]):
-        """25.- Impactos por programa"""
-        st.subheader("25.- Impactos por programa")
-        
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s32", global_filters)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            medio = st.selectbox("Medio", ("Radio", "TV", "Redes"), key="medio_s32")
-        with col2:
-            available_locations_programas = self.temp_coctel_fuente_programas['lugar'].dropna().unique()
-            available_locations_fb = self.temp_coctel_fuente_fb['lugar'].dropna().unique()
-            all_locations = sorted(set(list(available_locations_programas) + list(available_locations_fb)))
-            
-            region = st.selectbox("Lugar", options=all_locations, key="lugar_s32")
-        
-        if medio in ("Radio", "TV"):
-            temp_data = self.temp_coctel_fuente_programas[
-                (self.temp_coctel_fuente_programas["fecha_registro"] >= fecha_inicio) &
-                (self.temp_coctel_fuente_programas["fecha_registro"] <= fecha_fin) &
-                (self.temp_coctel_fuente_programas["lugar"] == region)
-            ]
-        else:
-            fb_data_minimal = self.temp_coctel_fuente_fb[['id', 'fecha_registro', 'lugar', 'coctel', 'nombre_facebook_page']]
-            
-            temp_data = fb_data_minimal[
-                (fb_data_minimal["fecha_registro"] >= fecha_inicio) &
-                (fb_data_minimal["fecha_registro"] <= fecha_fin) &
-                (fb_data_minimal["lugar"] == region)
-            ].drop_duplicates()
-            
-            temp_data = temp_data[
-                temp_data['nombre_facebook_page'].notna() &
-                (temp_data['nombre_facebook_page'] != '')
-            ]
-        
-        if not temp_data.empty:
-            result_coctel, result_total = self.analytics.calculate_program_impacts_complete(temp_data, medio)
-            
-            # column mapping for display
-            if medio in ("Radio", "TV"):
-                column_mapping = {"nombre_canal": "Canal", "programa_nombre": "Programa"}
-            else:
-                column_mapping = {"nombre_facebook_page": "Página Facebook"}
-                
-            if not result_coctel.empty:
-                st.write("**Impactos con cóctel por programa**")
-                st.dataframe(result_coctel.rename(columns=column_mapping), hide_index=True)
-                
-                # show totals
-                numeric_cols = result_coctel.select_dtypes(include=['number']).columns
-                if len(numeric_cols) > 0:
-                    total_data = {}
-                    for col in result_coctel.columns:
-                        if col in numeric_cols:
-                            total_data[col] = [result_coctel[col].sum()]
-                        else:
-                            total_data[col] = ["TOTAL"]
-                    
-                    total_df_coctel = pd.DataFrame(total_data)
-                    st.dataframe(total_df_coctel.rename(columns=column_mapping), hide_index=True)
-            else:
-                st.warning("No hay impactos con cóctel para la selección actual.")
-            
-            st.write("")
-            
-            # show total impacts
-            if not result_total.empty:
-                st.write("**Total de impactos por programa**")
-                st.dataframe(result_total.rename(columns=column_mapping), hide_index=True)
-                
-                # show totals
-                numeric_cols = result_total.select_dtypes(include=['number']).columns
-                if len(numeric_cols) > 0:
-                    total_data = {}
-                    for col in result_total.columns:
-                        if col in numeric_cols:
-                            total_data[col] = [result_total[col].sum()]
-                        else:
-                            total_data[col] = ["TOTAL"]
-                    
-                    total_df_total = pd.DataFrame(total_data)
-                    st.dataframe(total_df_total.rename(columns=column_mapping), hide_index=True)
-            else:
-                st.warning("No hay datos para la selección actual.")
-        else:
-            st.warning("No hay datos para la selección actual.")
-    
+       from sections.functions.grafico25 import data_section_25_impactos_programa_sql
+       
+       """25.- Impactos por programa"""
+       st.subheader("25.- Impactos por programa")
+       
+       fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s32", global_filters)
+       
+       col1, col2 = st.columns(2)
+       with col1:
+           medio = st.selectbox("Medio", ("Radio", "TV", "Redes"), key="medio_s32")
+       with col2:
+           # Obtener lugares disponibles
+           available_locations_programas = self.temp_coctel_fuente_programas['lugar'].dropna().unique()
+           available_locations_fb = self.temp_coctel_fuente_fb['lugar'].dropna().unique()
+           all_locations = sorted(set(list(available_locations_programas) + list(available_locations_fb)))
+           
+           region = st.selectbox("Lugar", options=all_locations, key="lugar_s32")
+       
+       # Convertir fechas a string formato YYYY-MM-DD
+       fecha_inicio_str = fecha_inicio.strftime('%Y-%m-%d')
+       fecha_fin_str = fecha_fin.strftime('%Y-%m-%d')
+       
+       # Llamar a la función SQL
+       result_coctel, result_total = data_section_25_impactos_programa_sql(
+           fecha_inicio_str,
+           fecha_fin_str,
+           region,
+           medio
+       )
+       
+       # Mapeo de columnas para display
+       if medio in ("Radio", "TV"):
+           column_mapping = {"nombre_canal": "Canal", "programa_nombre": "Programa"}
+       else:
+           column_mapping = {"nombre_facebook_page": "Página Facebook"}
+       
+       # Mostrar resultados de impactos con cóctel
+       if not result_coctel.empty:
+           st.write("**Impactos con cóctel por programa**")
+           st.dataframe(result_coctel.rename(columns=column_mapping), hide_index=True)
+           
+           # Mostrar totales
+           if medio in ("Radio", "TV"):
+               total_coctel = result_coctel['impactos_con_coctel'].sum()
+               total_df_coctel = pd.DataFrame({
+                   'nombre_canal': ['TOTAL'],
+                   'programa_nombre': ['TOTAL'],
+                   'impactos_con_coctel': [total_coctel]
+               })
+           else:
+               total_coctel = result_coctel['impactos_con_coctel'].sum()
+               total_df_coctel = pd.DataFrame({
+                   'nombre_facebook_page': ['TOTAL'],
+                   'impactos_con_coctel': [total_coctel]
+               })
+           
+           st.dataframe(total_df_coctel.rename(columns=column_mapping), hide_index=True)
+       else:
+           st.warning("No hay impactos con cóctel para la selección actual.")
+       
+       st.markdown("---")
+       
+       # Mostrar resultados de total de impactos
+       if not result_total.empty:
+           st.write("**Total de impactos por programa**")
+           st.dataframe(result_total.rename(columns=column_mapping), hide_index=True)
+           
+           # Mostrar totales
+           if medio in ("Radio", "TV"):
+               total_impactos = result_total['total_impactos'].sum()
+               total_df_total = pd.DataFrame({
+                   'nombre_canal': ['TOTAL'],
+                   'programa_nombre': ['TOTAL'],
+                   'total_impactos': [total_impactos]
+               })
+           else:
+               total_impactos = result_total['total_impactos'].sum()
+               total_df_total = pd.DataFrame({
+                   'nombre_facebook_page': ['TOTAL'],
+                   'total_impactos': [total_impactos]
+               })
+           
+           st.dataframe(total_df_total.rename(columns=column_mapping), hide_index=True)
+       else:
+           st.warning("No hay datos de impactos totales para la selección actual.")
+   
+           
+    #def section_25_impactos_programa(self, global_filters: Dict[str, Any]):
+    #    """25.- Impactos por programa"""
+    #    st.subheader("25.- Impactos por programa")
+    #    
+    #    fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s32", global_filters)
+    #    
+    #    col1, col2 = st.columns(2)
+    #    with col1:
+    #        medio = st.selectbox("Medio", ("Radio", "TV", "Redes"), key="medio_s32")
+    #    with col2:
+    #        available_locations_programas = self.temp_coctel_fuente_programas['lugar'].dropna().unique()
+    #        available_locations_fb = self.temp_coctel_fuente_fb['lugar'].dropna().unique()
+    #        all_locations = sorted(set(list(available_locations_programas) + list(available_locations_fb)))
+    #        
+    #        region = st.selectbox("Lugar", options=all_locations, key="lugar_s32")
+    #    
+    #    if medio in ("Radio", "TV"):
+    #        temp_data = self.temp_coctel_fuente_programas[
+    #            (self.temp_coctel_fuente_programas["fecha_registro"] >= fecha_inicio) &
+    #            (self.temp_coctel_fuente_programas["fecha_registro"] <= fecha_fin) &
+    #            (self.temp_coctel_fuente_programas["lugar"] == region)
+    #        ]
+    #    else:
+    #        fb_data_minimal = self.temp_coctel_fuente_fb[['id', 'fecha_registro', 'lugar', 'coctel', 'nombre_facebook_page']]
+    #        
+    #        temp_data = fb_data_minimal[
+    #            (fb_data_minimal["fecha_registro"] >= fecha_inicio) &
+    #            (fb_data_minimal["fecha_registro"] <= fecha_fin) &
+    #            (fb_data_minimal["lugar"] == region)
+    #        ].drop_duplicates()
+    #        
+    #        temp_data = temp_data[
+    #            temp_data['nombre_facebook_page'].notna() &
+    #            (temp_data['nombre_facebook_page'] != '')
+    #        ]
+    #    
+    #    if not temp_data.empty:
+    #        result_coctel, result_total = self.analytics.calculate_program_impacts_complete(temp_data, medio)
+    #        
+    #        # column mapping for display
+    #        if medio in ("Radio", "TV"):
+    #            column_mapping = {"nombre_canal": "Canal", "programa_nombre": "Programa"}
+    #        else:
+    #            column_mapping = {"nombre_facebook_page": "Página Facebook"}
+    #            
+    #        if not result_coctel.empty:
+    #            st.write("**Impactos con cóctel por programa**")
+    #            st.dataframe(result_coctel.rename(columns=column_mapping), hide_index=True)
+    #            
+    #            # show totals
+    #            numeric_cols = result_coctel.select_dtypes(include=['number']).columns
+    #            if len(numeric_cols) > 0:
+    #                total_data = {}
+    #                for col in result_coctel.columns:
+    #                    if col in numeric_cols:
+    #                        total_data[col] = [result_coctel[col].sum()]
+    #                    else:
+    #                        total_data[col] = ["TOTAL"]
+    #                
+    #                total_df_coctel = pd.DataFrame(total_data)
+    #                st.dataframe(total_df_coctel.rename(columns=column_mapping), hide_index=True)
+    #        else:
+    #            st.warning("No hay impactos con cóctel para la selección actual.")
+    #        
+    #        st.write("")
+    #        
+    #        # show total impacts
+    #        if not result_total.empty:
+    #            st.write("**Total de impactos por programa**")
+    #            st.dataframe(result_total.rename(columns=column_mapping), hide_index=True)
+    #            
+    #            # show totals
+    #            numeric_cols = result_total.select_dtypes(include=['number']).columns
+    #            if len(numeric_cols) > 0:
+    #                total_data = {}
+    #                for col in result_total.columns:
+    #                    if col in numeric_cols:
+    #                        total_data[col] = [result_total[col].sum()]
+    #                    else:
+    #                        total_data[col] = ["TOTAL"]
+    #                
+    #                total_df_total = pd.DataFrame(total_data)
+    #                st.dataframe(total_df_total.rename(columns=column_mapping), hide_index=True)
+    #        else:
+    #            st.warning("No hay datos para la selección actual.")
+    #    else:
+    #        st.warning("No hay datos para la selección actual.")
+    #
     def section_26_distribucion_medio(self, global_filters: Dict[str, Any]):
         """26.- Distribución de cócteles por medio"""
         st.subheader("26.- Distribución de cócteles por medio")
