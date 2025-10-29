@@ -2866,54 +2866,118 @@ class CoctelSections:
            
        else:
            st.warning("No hay datos para la selección actual.")
-                
+
+   # Código para reemplazar en coctel_sections.py en la función section_27_favor_contra_mensual
+
     def section_27_favor_contra_mensual(self, global_filters: Dict[str, Any]):
-        """27.- Notas a favor vs en contra"""
-        st.subheader("27.- Notas a favor vs en contra")
-
+        from sections.functions.grafico27 import data_section_27_favor_contra_mensual_sql
+        
+        """27.- Notas a favor vs en contra por mes"""
+        st.subheader("27.- Notas a favor vs en contra por mes")
+    
         fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s34", global_filters)
-
+    
         col1, col2 = st.columns(2)
         with col1:
             medio = st.selectbox("Medio", ("Radio", "TV", "Redes", "Todos"), key="medio_s34")
         with col2:
             regiones = self.filter_manager.get_section_locations("s34", global_filters, multi=True)
-
-        temp_data = self.temp_coctel_fuente[
-            (self.temp_coctel_fuente["fecha_registro"] >= fecha_inicio) &
-            (self.temp_coctel_fuente["fecha_registro"] <= fecha_fin) &
-            (self.temp_coctel_fuente["lugar"].isin(regiones))
-        ]
-
-        if not temp_data.empty:
-            long_data = self.analytics.calculate_favor_vs_contra_monthly(temp_data, medio)
-
-            if not long_data.empty:
-                fig = px.line(
-                    long_data,
-                    x="mes_str",
-                    y="Porcentaje",
-                    color="Tipo",
-                    markers=True,
-                    color_discrete_map={
-                        "A favor (%)": "blue",
-                        "En contra (%)": "red"
-                    },
-                    labels={"mes_str": "Mes", "Porcentaje": "% sobre total", "Tipo": ""},
-                    title="Notas a favor vs en contra por mes"
-                )
-
-                fig.update_traces(
-                    text=long_data["Porcentaje"].round(0).astype(int).astype(str) + "%",
-                    textposition="top center"
-                )
-                fig.update_layout(xaxis_tickangle=45)
-
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("No hay datos para la selección actual.")
+    
+        # Convertir fechas a string
+        fecha_inicio_str = fecha_inicio.strftime('%Y-%m-%d')
+        fecha_fin_str = fecha_fin.strftime('%Y-%m-%d')
+        
+        # Llamar a la función SQL
+        long_data = data_section_27_favor_contra_mensual_sql(
+            fecha_inicio_str,
+            fecha_fin_str,
+            regiones,
+            medio
+        )
+    
+        if not long_data.empty:
+            # Crear gráfico de líneas
+            fig = px.line(
+                long_data,
+                x="mes_str",
+                y="Porcentaje",
+                color="Tipo",
+                markers=True,
+                color_discrete_map={
+                    "A favor (%)": "blue",
+                    "En contra (%)": "red"
+                },
+                labels={"mes_str": "Mes", "Porcentaje": "% sobre total", "Tipo": ""},
+                title="Notas a favor vs en contra por mes"
+            )
+    
+            fig.update_traces(
+                text=long_data["Porcentaje"].round(0).astype(int).astype(str) + "%",
+                textposition="top center"
+            )
+            fig.update_layout(xaxis_tickangle=45)
+    
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Mostrar tabla con datos
+            st.write("**Detalle por mes:**")
+            pivot_data = long_data.pivot(index='mes_str', columns='Tipo', values='Porcentaje').reset_index()
+            pivot_data = pivot_data.rename(columns={'mes_str': 'Mes'})
+            pivot_data['A favor (%)'] = pivot_data['A favor (%)'].round(1).astype(str) + '%'
+            pivot_data['En contra (%)'] = pivot_data['En contra (%)'].round(1).astype(str) + '%'
+            st.dataframe(pivot_data, hide_index=True)
+            
         else:
             st.warning("No hay datos para la selección actual.")
+            
+                         
+   # def section_27_favor_contra_mensual(self, global_filters: Dict[str, Any]):
+   #     """27.- Notas a favor vs en contra"""
+   #     st.subheader("27.- Notas a favor vs en contra")
+#
+   #     fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s34", global_filters)
+#
+   #     col1, col2 = st.columns(2)
+   #     with col1:
+   #         medio = st.selectbox("Medio", ("Radio", "TV", "Redes", "Todos"), key="medio_s34")
+   #     with col2:
+   #         regiones = self.filter_manager.get_section_locations("s34", global_filters, multi=True)
+#
+   #     temp_data = self.temp_coctel_fuente[
+   #         (self.temp_coctel_fuente["fecha_registro"] >= fecha_inicio) &
+   #         (self.temp_coctel_fuente["fecha_registro"] <= fecha_fin) &
+   #         (self.temp_coctel_fuente["lugar"].isin(regiones))
+   #     ]
+#
+   #     if not temp_data.empty:
+   #         long_data = self.analytics.calculate_favor_vs_contra_monthly(temp_data, medio)
+#
+   #         if not long_data.empty:
+   #             fig = px.line(
+   #                 long_data,
+   #                 x="mes_str",
+   #                 y="Porcentaje",
+   #                 color="Tipo",
+   #                 markers=True,
+   #                 color_discrete_map={
+   #                     "A favor (%)": "blue",
+   #                     "En contra (%)": "red"
+   #                 },
+   #                 labels={"mes_str": "Mes", "Porcentaje": "% sobre total", "Tipo": ""},
+   #                 title="Notas a favor vs en contra por mes"
+   #             )
+#
+   #             fig.update_traces(
+   #                 text=long_data["Porcentaje"].round(0).astype(int).astype(str) + "%",
+   #                 textposition="top center"
+   #             )
+   #             fig.update_layout(xaxis_tickangle=45)
+#
+   #             st.plotly_chart(fig, use_container_width=True)
+   #         else:
+   #             st.warning("No hay datos para la selección actual.")
+   #     else:
+   #         st.warning("No hay datos para la selección actual.")
         
     def section_2_posicion_por_fuente(self, global_filters: Dict[str, Any], mostrar_todos: bool):
        """2.- Posición por fuente en lugar y fecha específica - con tabla y porcentajes"""
