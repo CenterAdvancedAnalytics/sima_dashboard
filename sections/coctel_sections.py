@@ -2769,45 +2769,104 @@ class CoctelSections:
     #    else:
     #        st.warning("No hay datos para la selección actual.")
     #
+    
+    
+    #def section_26_distribucion_medio(self, global_filters: Dict[str, Any]):
+    #    """26.- Distribución de cócteles por medio"""
+    #    st.subheader("26.- Distribución de cócteles por medio")
+    #    
+    #    fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s33", global_filters)
+    #    
+    #    temp_data = self.temp_coctel_fuente[
+    #        (self.temp_coctel_fuente["fecha_registro"] >= fecha_inicio) &
+    #        (self.temp_coctel_fuente["fecha_registro"] <= fecha_fin)
+    #    ]
+    #    
+    #    if not temp_data.empty:
+    #        conteo_data = self.analytics.calculate_coctel_distribution_by_media(temp_data)
+    #        
+    #        if not conteo_data.empty:
+    #            fig = px.pie(
+    #                conteo_data,
+    #                values="count",
+    #                names="Fuente",
+    #                color="Fuente",
+    #                color_discrete_map={
+    #                    "Radio": "blue",
+    #                    "Redes": "red",
+    #                    "TV": "gray"
+    #                },
+    #                title="Distribución de cócteles por medio"
+    #            )
+    #            
+    #            fig.update_traces(
+    #                textposition="inside",
+    #                textinfo="value+percent"
+    #            )
+    #            
+    #            st.plotly_chart(fig, use_container_width=True)
+    #        else:
+    #            st.warning("No hay datos para la selección actual.")
+    #    else:
+    #        st.warning("No hay datos para la selección actual.")
+    #    
+
+
+    # Código para reemplazar en coctel_sections.py en la función section_26_distribucion_medio
+
     def section_26_distribucion_medio(self, global_filters: Dict[str, Any]):
-        """26.- Distribución de cócteles por medio"""
-        st.subheader("26.- Distribución de cócteles por medio")
-        
-        fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s33", global_filters)
-        
-        temp_data = self.temp_coctel_fuente[
-            (self.temp_coctel_fuente["fecha_registro"] >= fecha_inicio) &
-            (self.temp_coctel_fuente["fecha_registro"] <= fecha_fin)
-        ]
-        
-        if not temp_data.empty:
-            conteo_data = self.analytics.calculate_coctel_distribution_by_media(temp_data)
-            
-            if not conteo_data.empty:
-                fig = px.pie(
-                    conteo_data,
-                    values="count",
-                    names="Fuente",
-                    color="Fuente",
-                    color_discrete_map={
-                        "Radio": "blue",
-                        "Redes": "red",
-                        "TV": "gray"
-                    },
-                    title="Distribución de cócteles por medio"
-                )
+       from sections.functions.grafico26 import data_section_26_distribucion_medio_sql
+       
+       """26.- Distribución de cócteles por medio"""
+       st.subheader("26.- Distribución de cócteles por medio")
+       
+       fecha_inicio, fecha_fin = self.filter_manager.get_section_dates("s33", global_filters)
+       
+       # Convertir fechas a string formato YYYY-MM-DD
+       fecha_inicio_str = fecha_inicio.strftime('%Y-%m-%d')
+       fecha_fin_str = fecha_fin.strftime('%Y-%m-%d')
+       
+       # Llamar a la función SQL
+       conteo_data = data_section_26_distribucion_medio_sql(
+           fecha_inicio_str,
+           fecha_fin_str
+       )
+       
+       if not conteo_data.empty:
+           # Renombrar columna para el gráfico
+           conteo_data = conteo_data.rename(columns={'fuente': 'Fuente'})
+           
+           # Crear gráfico PIE
+           fig = px.pie(
+               conteo_data,
+               values="count",
+               names="Fuente",
+               color="Fuente",
+               color_discrete_map={
+                   "Radio": "blue",
+                   "Redes": "red",
+                   "TV": "gray"
+               },
+               title="Distribución de cócteles por medio"
+           )
+           
+           fig.update_traces(
+               textposition="inside",
+               textinfo="value+percent"
+           )
+           
+           st.plotly_chart(fig, use_container_width=True)
+           
+           # Mostrar tabla con datos
+           st.write("**Detalle por medio:**")
+           total = conteo_data['count'].sum()
+           conteo_data['Porcentaje'] = (conteo_data['count'] / total * 100).round(1).astype(str) + '%'
+           conteo_data = conteo_data.rename(columns={'count': 'Total de Cócteles'})
+           st.dataframe(conteo_data[['Fuente', 'Total de Cócteles', 'Porcentaje']], hide_index=True)
+           
+       else:
+           st.warning("No hay datos para la selección actual.")
                 
-                fig.update_traces(
-                    textposition="inside",
-                    textinfo="value+percent"
-                )
-                
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("No hay datos para la selección actual.")
-        else:
-            st.warning("No hay datos para la selección actual.")
-            
     def section_27_favor_contra_mensual(self, global_filters: Dict[str, Any]):
         """27.- Notas a favor vs en contra"""
         st.subheader("27.- Notas a favor vs en contra")
@@ -3736,6 +3795,8 @@ class CoctelSections:
             "23": lambda: self.section_23_evolucion_mensual(global_filters, mostrar_todos),
             "24": lambda: self.section_24_mensajes_fuerza(global_filters, mostrar_todos),
             "25": lambda: self.section_25_impactos_programa(global_filters),
+            "26": lambda: self.section_26_distribucion_medio(global_filters),
+            "27": lambda: self.section_27_favor_contra_mensual(global_filters),
         }
         
         # Ejecutar la sección seleccionada

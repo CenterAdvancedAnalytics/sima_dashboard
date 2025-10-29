@@ -215,6 +215,8 @@ class DashboardApp:
             "23. Evolución mensual (Radio, Redes, TV)": "23",
             "24. Mensajes Fuerza": "24",
             "25. Impactos por programa": "25",
+            "26. Distribución por medio": "26",
+            "27. A Favor vs En Contra (Mensual)": "27",
         }
         
         # Selectbox para elegir la sección
