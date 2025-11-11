@@ -126,6 +126,8 @@ def conteo_posiciones_agregado_radio_tv(fecha_inicio: str, fecha_fin: str, ids_l
         WHERE a.id_lugar IN ({placeholders})
             AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date >= %s::date
             AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date <= %s::date
+            AND a.id_posicion IS NOT NULL
+            AND a.id_posicion BETWEEN 1 AND 5
             {filtro_fuente}
             {filtro_nota}
     ),
@@ -187,6 +189,8 @@ def conteo_posiciones_agregado_redes(fecha_inicio: str, fecha_fin: str, ids_luga
     WHERE a.id_lugar IN ({placeholders})
         AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date >= %s::date
         AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date <= %s::date
+        AND a.id_posicion IS NOT NULL
+        AND a.id_posicion BETWEEN 1 AND 5
         {filtro_nota}
     GROUP BY a.id_posicion
     ORDER BY a.id_posicion;
@@ -268,7 +272,25 @@ def data_section_9_distribucion_posiciones_sql(fecha_inicio: str, fecha_fin: str
         
         # Agregar columna de nombre descriptivo para posiciones
         if not resultado_final.empty:
-            resultado_final['Posición'] = resultado_final['posicion'].apply(lambda x: f'Posición {x}')
+            # Mapeo que coincide con COLOR_POSICION_DICT en constants.py
+            posicion_dict = {
+                1: 'A favor',
+                2: 'Potencialmente a favor',
+                3: 'Neutral',
+                4: 'Potencialmente en contra',
+                5: 'En contra'
+            }
+            resultado_final['Posición'] = resultado_final['posicion'].map(posicion_dict)
+            
+            # ✅ FILTRAR POSICIONES NULAS O INVÁLIDAS
+            # Eliminar filas donde la posición no pudo ser mapeada (quedan como NaN)
+            antes_filtro = len(resultado_final)
+            resultado_final = resultado_final.dropna(subset=['Posición'])
+            despues_filtro = len(resultado_final)
+            
+            if antes_filtro > despues_filtro:
+                print(f"⚠️ Se eliminaron {antes_filtro - despues_filtro} registros con posiciones inválidas o nulas")
+            
             print(f"DEBUG: Resultado final con nombres:\n{resultado_final}")
         
         return resultado_final
@@ -281,18 +303,32 @@ def data_section_9_distribucion_posiciones_sql(fecha_inicio: str, fecha_fin: str
 
 def convertir_posicion_a_nombre(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Convierte los IDs de posición a nombres descriptivos si es necesario
+    Convierte los IDs de posición a nombres descriptivos.
+    Función independiente para conversión manual si se necesita.
+    
+    Args:
+        df: DataFrame con columna 'posicion' o 'Posición'
+    
+    Returns:
+        DataFrame con columna 'Posición' convertida a nombres descriptivos
+    
+    Ejemplo de uso:
+        df_resultado = data_section_9_distribucion_posiciones_sql('2024-01-01', '2024-12-31', ['Lima'], 'Todos', 'Todos')
+        df_con_nombres = convertir_posicion_a_nombre(df_resultado)
     """
-    # Mapeo de posiciones (ajustar según tus necesidades)
+    # Mapeo de posiciones a nombres de sentimiento (coincide con COLOR_POSICION_DICT)
     posicion_dict = {
-        1: 'Posición 1',
-        2: 'Posición 2', 
-        3: 'Posición 3',
-        4: 'Posición 4',
-        5: 'Posición 5'
+        1: 'A favor',
+        2: 'Potencialmente a favor', 
+        3: 'Neutral',
+        4: 'Potencialmente en contra',
+        5: 'En contra'
     }
     
-    if not df.empty and 'Posición' in df.columns:
-        df['Posición'] = df['posicion'].map(posicion_dict).fillna(df['Posición'])
+    if not df.empty:
+        if 'posicion' in df.columns:
+            df['Posición'] = df['posicion'].map(posicion_dict)
+        elif 'Posición' in df.columns and df['Posición'].dtype in ['int64', 'int32']:
+            df['Posición'] = df['Posición'].map(posicion_dict)
     
     return df

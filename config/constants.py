@@ -20,12 +20,19 @@ ID_FUENTE_DICT = {
     3: 'Redes'
 }
 
+# ✅ PALETA DE COLORES ACTUALIZADA - Coincide con nombres en grafico9.py
 COLOR_POSICION_DICT = {
-    "a favor": "blue",
-    "potencialmente a favor": "lightblue", 
-    "neutral": "gray",
-    "potencialmente en contra": "#FFA500",
-    "en contra": "red"
+    "A favor": "#2E7D32",  # Verde oscuro
+    "Potencialmente a favor": "#66BB6A",  # Verde claro
+    "Neutral": "#9E9E9E",  # Gris
+    "Potencialmente en contra": "#FF9800",  # Naranja
+    "En contra": "#D32F2F",  # Rojo
+    # Mantener backward compatibility con minúsculas
+    "a favor": "#2E7D32",
+    "potencialmente a favor": "#66BB6A",
+    "neutral": "#9E9E9E",
+    "potencialmente en contra": "#FF9800",
+    "en contra": "#D32F2F"
 }
 
 COLOR_DISCRETE_MAP = {

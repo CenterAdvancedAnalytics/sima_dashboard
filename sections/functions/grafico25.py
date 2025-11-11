@@ -190,6 +190,7 @@ def impactos_redes(
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Calcula impactos con cóctel y total de impactos para Redes.
+    Incluye deduplicación por nombre de facebook_page.
     
     Args:
         fecha_inicio: Fecha inicio en formato 'YYYY-MM-DD'
@@ -203,37 +204,67 @@ def impactos_redes(
     
     # Query para impactos CON cóctel
     query_coctel = """
+    WITH acontecimientos_facebook AS (
+        SELECT DISTINCT
+            a.id as acontecimiento_id,
+            fp.nombre as nombre_facebook_page
+        FROM acontecimientos a
+        INNER JOIN acontecimiento_facebook_post afp ON a.id = afp.id_acontecimiento
+        INNER JOIN facebook_posts fpost ON afp.id_facebook_post = fpost.id
+        INNER JOIN facebook_pages fp ON fpost.id_facebook_page = fp.id
+        WHERE a.id_lugar = %s
+            AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date >= %s::date
+            AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date <= %s::date
+            AND a.id_nota IS NOT NULL  -- Solo con cóctel
+            AND fp.nombre IS NOT NULL
+            AND fp.nombre != ''
+    ),
+    acontecimientos_deduplicados AS (
+        -- Deduplicar por nombre de facebook_page
+        SELECT DISTINCT
+            acontecimiento_id,
+            nombre_facebook_page
+        FROM acontecimientos_facebook
+        GROUP BY acontecimiento_id, nombre_facebook_page
+    )
     SELECT 
-        fp.nombre as nombre_facebook_page,
-        COUNT(DISTINCT a.id) as impactos_con_coctel
-    FROM acontecimientos a
-    INNER JOIN acontecimiento_facebook_post afp ON a.id = afp.id_acontecimiento
-    INNER JOIN facebook_pages fp ON afp.id_facebook_page = fp.id
-    WHERE a.id_lugar = %s
-        AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date >= %s::date
-        AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date <= %s::date
-        AND a.id_nota IS NOT NULL  -- Solo con cóctel
-        AND fp.nombre IS NOT NULL
-        AND fp.nombre != ''
-    GROUP BY fp.nombre
-    ORDER BY fp.nombre;
+        nombre_facebook_page,
+        COUNT(*) as impactos_con_coctel
+    FROM acontecimientos_deduplicados
+    GROUP BY nombre_facebook_page
+    ORDER BY nombre_facebook_page;
     """
     
     # Query para TOTAL de impactos
     query_total = """
+    WITH acontecimientos_facebook AS (
+        SELECT DISTINCT
+            a.id as acontecimiento_id,
+            fp.nombre as nombre_facebook_page
+        FROM acontecimientos a
+        INNER JOIN acontecimiento_facebook_post afp ON a.id = afp.id_acontecimiento
+        INNER JOIN facebook_posts fpost ON afp.id_facebook_post = fpost.id
+        INNER JOIN facebook_pages fp ON fpost.id_facebook_page = fp.id
+        WHERE a.id_lugar = %s
+            AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date >= %s::date
+            AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date <= %s::date
+            AND fp.nombre IS NOT NULL
+            AND fp.nombre != ''
+    ),
+    acontecimientos_deduplicados AS (
+        -- Deduplicar por nombre de facebook_page
+        SELECT DISTINCT
+            acontecimiento_id,
+            nombre_facebook_page
+        FROM acontecimientos_facebook
+        GROUP BY acontecimiento_id, nombre_facebook_page
+    )
     SELECT 
-        fp.nombre as nombre_facebook_page,
-        COUNT(DISTINCT a.id) as total_impactos
-    FROM acontecimientos a
-    INNER JOIN acontecimiento_facebook_post afp ON a.id = afp.id_acontecimiento
-    INNER JOIN facebook_pages fp ON afp.id_facebook_page = fp.id
-    WHERE a.id_lugar = %s
-        AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date >= %s::date
-        AND (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima')::date <= %s::date
-        AND fp.nombre IS NOT NULL
-        AND fp.nombre != ''
-    GROUP BY fp.nombre
-    ORDER BY fp.nombre;
+        nombre_facebook_page,
+        COUNT(*) as total_impactos
+    FROM acontecimientos_deduplicados
+    GROUP BY nombre_facebook_page
+    ORDER BY nombre_facebook_page;
     """
     
     params = [id_lugar, fecha_inicio, fecha_fin]
@@ -252,8 +283,8 @@ def impactos_redes(
     except Exception as e:
         print(f"Error en impactos_redes: {e}")
         return pd.DataFrame(), pd.DataFrame()
-
-
+    
+    
 def data_section_25_impactos_programa_sql(
     fecha_inicio: str,
     fecha_fin: str,

@@ -76,7 +76,39 @@ def obtener_id_lugar(nombre_lugar: str) -> Optional[int]:
         return None
 
 
-def conteo_favor_contra_radio_tv(fecha_inicio: str, fecha_fin: str, lugar: Optional[int], 
+def obtener_ids_lugares(nombres_lugares: List[str]) -> List[int]:
+    """
+    Convierte lista de nombres de lugares a lista de IDs
+    """
+    if not nombres_lugares:
+        return []
+    
+    # Crear placeholders para la query IN
+    placeholders = ','.join(['%s'] * len(nombres_lugares))
+    query = f"""
+    SELECT id, nombre 
+    FROM lugares 
+    WHERE nombre IN ({placeholders})
+    ORDER BY nombre;
+    """
+    
+    try:
+        resultado = ejecutar_query(query, params=nombres_lugares)
+        
+        if resultado is None or resultado.empty:
+            print(f"No se encontraron lugares: {nombres_lugares}")
+            return []
+            
+        ids_encontrados = resultado['id'].tolist()
+        print(f"✅ Lugares encontrados: {len(ids_encontrados)} de {len(nombres_lugares)}")
+        return ids_encontrados
+        
+    except Exception as e:
+        print(f"Error al buscar lugares {nombres_lugares}: {e}")
+        return []
+
+
+def conteo_favor_contra_radio_tv(fecha_inicio: str, fecha_fin: str, ids_lugares: List[int], 
                                   fuentes: List[str], option_nota: str) -> pd.DataFrame:
     """
     Conteo de notas a favor, en contra y neutral para Radio y TV
@@ -84,7 +116,7 @@ def conteo_favor_contra_radio_tv(fecha_inicio: str, fecha_fin: str, lugar: Optio
     Args:
         fecha_inicio: Fecha inicio en formato 'YYYY-MM-DD'
         fecha_fin: Fecha fin en formato 'YYYY-MM-DD'
-        lugar: ID del lugar o None para todas las regiones
+        ids_lugares: Lista de IDs de lugares (vacío para todas las regiones)
         fuentes: Lista de fuentes ['RADIO', 'TV']
         option_nota: 'Con coctel', 'Sin coctel', o 'Todos'
     
@@ -99,8 +131,11 @@ def conteo_favor_contra_radio_tv(fecha_inicio: str, fecha_fin: str, lugar: Optio
     if not ids_fuentes:
         return pd.DataFrame()
     
-    # Filtro de lugar
-    filtro_lugar = "AND a.id_lugar = %s" if lugar is not None else ""
+    # Filtro de lugares
+    filtro_lugar = ""
+    if ids_lugares:
+        placeholders_lugares = ','.join(['%s'] * len(ids_lugares))
+        filtro_lugar = f"AND a.id_lugar IN ({placeholders_lugares})"
     
     # Filtro de cóctel
     filtro_coctel = ""
@@ -151,8 +186,8 @@ def conteo_favor_contra_radio_tv(fecha_inicio: str, fecha_fin: str, lugar: Optio
     
     # Construir parámetros
     params = [fecha_inicio, fecha_fin]
-    if lugar is not None:
-        params.append(lugar)
+    if ids_lugares:
+        params.extend(ids_lugares)
     params.extend(ids_fuentes)
     
     try:
@@ -163,7 +198,7 @@ def conteo_favor_contra_radio_tv(fecha_inicio: str, fecha_fin: str, lugar: Optio
         return pd.DataFrame()
 
 
-def conteo_favor_contra_redes(fecha_inicio: str, fecha_fin: str, lugar: Optional[int], 
+def conteo_favor_contra_redes(fecha_inicio: str, fecha_fin: str, ids_lugares: List[int], 
                                option_nota: str) -> pd.DataFrame:
     """
     Conteo de notas a favor, en contra y neutral para Redes Sociales
@@ -175,15 +210,18 @@ def conteo_favor_contra_redes(fecha_inicio: str, fecha_fin: str, lugar: Optional
     Args:
         fecha_inicio: Fecha inicio en formato 'YYYY-MM-DD'
         fecha_fin: Fecha fin en formato 'YYYY-MM-DD'
-        lugar: ID del lugar o None para todas las regiones
+        ids_lugares: Lista de IDs de lugares (vacío para todas las regiones)
         option_nota: 'Con coctel', 'Sin coctel', o 'Todos'
     
     Returns:
         DataFrame con columnas: año_mes, a_favor, en_contra, neutral
     """
     
-    # Filtro de lugar
-    filtro_lugar = "AND a.id_lugar = %s" if lugar is not None else ""
+    # Filtro de lugares
+    filtro_lugar = ""
+    if ids_lugares:
+        placeholders_lugares = ','.join(['%s'] * len(ids_lugares))
+        filtro_lugar = f"AND a.id_lugar IN ({placeholders_lugares})"
     
     # Filtro de cóctel
     filtro_coctel = ""
@@ -210,8 +248,8 @@ def conteo_favor_contra_redes(fecha_inicio: str, fecha_fin: str, lugar: Optional
     
     # Construir parámetros
     params = [fecha_inicio, fecha_fin]
-    if lugar is not None:
-        params.append(lugar)
+    if ids_lugares:
+        params.extend(ids_lugares)
     
     try:
         resultado = ejecutar_query(query, params=params)
@@ -222,7 +260,7 @@ def conteo_favor_contra_redes(fecha_inicio: str, fecha_fin: str, lugar: Optional
 
 
 def data_section_14_favor_contra_neutral_sql(fecha_inicio: str, fecha_fin: str, 
-                                             lugar: str, fuentes: List[str], 
+                                             lugares: List[str], fuentes: List[str], 
                                              option_nota: str) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Función principal para calcular porcentaje de notas a favor, neutral y en contra
@@ -230,7 +268,7 @@ def data_section_14_favor_contra_neutral_sql(fecha_inicio: str, fecha_fin: str,
     Args:
         fecha_inicio: Fecha inicio en formato 'YYYY-MM-DD'
         fecha_fin: Fecha fin en formato 'YYYY-MM-DD'
-        lugar: Nombre del lugar o 'Todas las regiones'
+        lugares: Lista de nombres de lugares (vacío para todas las regiones)
         fuentes: Lista de fuentes ['RADIO', 'TV', 'REDES']
         option_nota: 'Con coctel', 'Sin coctel', o 'Todos'
     
@@ -241,14 +279,18 @@ def data_section_14_favor_contra_neutral_sql(fecha_inicio: str, fecha_fin: str,
         - conteo_abs: DataFrame con conteos absolutos
     """
     
-    print(f"DEBUG grafico14: fecha_inicio={fecha_inicio}, fecha_fin={fecha_fin}, lugar={lugar}, fuentes={fuentes}, option_nota={option_nota}")
+    print(f"DEBUG grafico14: fecha_inicio={fecha_inicio}, fecha_fin={fecha_fin}, lugares={lugares}, fuentes={fuentes}, option_nota={option_nota}")
     
-    # Obtener ID del lugar si no es "Todas las regiones"
-    id_lugar = None
-    if lugar != "Todas las regiones":
-        id_lugar = obtener_id_lugar(lugar)
-        if id_lugar is None:
+    # Obtener IDs de lugares
+    ids_lugares = []
+    if lugares:  # Si hay lugares específicos
+        ids_lugares = obtener_ids_lugares(lugares)
+        if not ids_lugares:
+            print(f"⚠️ No se encontraron IDs para los lugares: {lugares}")
             return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        print(f"✅ IDs de lugares: {ids_lugares}")
+    else:  # Si está vacío, significa "todas las regiones"
+        print(f"✅ Consultando todas las regiones")
     
     # Separar fuentes entre Radio/TV y Redes
     fuentes_radio_tv = [f for f in fuentes if f in ['RADIO', 'TV']]
@@ -262,7 +304,7 @@ def data_section_14_favor_contra_neutral_sql(fecha_inicio: str, fecha_fin: str,
     if fuentes_radio_tv:
         print(f"🔍 Consultando Radio/TV...")
         resultado_radio_tv = conteo_favor_contra_radio_tv(
-            fecha_inicio, fecha_fin, id_lugar, fuentes_radio_tv, option_nota
+            fecha_inicio, fecha_fin, ids_lugares, fuentes_radio_tv, option_nota
         )
         print(f"📻📺 Radio/TV: {len(resultado_radio_tv)} filas")
     
@@ -270,7 +312,7 @@ def data_section_14_favor_contra_neutral_sql(fecha_inicio: str, fecha_fin: str,
     if incluye_redes:
         print(f"🔍 Consultando Redes...")
         resultado_redes = conteo_favor_contra_redes(
-            fecha_inicio, fecha_fin, id_lugar, option_nota
+            fecha_inicio, fecha_fin, ids_lugares, option_nota
         )
         print(f"📱 Redes: {len(resultado_redes)} filas")
     

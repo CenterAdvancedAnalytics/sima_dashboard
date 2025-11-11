@@ -246,15 +246,26 @@ def data_section_8_conteo_posiciones_sql(fecha_inicio: str, fecha_fin: str, luga
 
 def convertir_posicion_a_nombre(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Convierte los IDs de posición a nombres descriptivos si es necesario
+    Convierte los IDs de posición a nombres descriptivos.
+    Función independiente que puede ser llamada cuando se necesite convertir posiciones.
+    
+    Args:
+        df: DataFrame con columna 'Posición' que contiene IDs numéricos
+    
+    Returns:
+        DataFrame con columna 'Posición' convertida a nombres descriptivos
+    
+    Ejemplo de uso:
+        df_resultado = data_section_8_conteo_posiciones_sql('2024-01-01', '2024-12-31', 'Lima', 'Todos', 'Todos')
+        df_con_nombres = convertir_posicion_a_nombre(df_resultado)
     """
-    # Mapeo de posiciones (ajustar según tus necesidades)
+    # Mapeo de posiciones a nombres de sentimiento
     posicion_dict = {
-        1: 'Posición 1',
-        2: 'Posición 2', 
-        3: 'Posición 3',
-        4: 'Posición 4',
-        5: 'Posición 5'
+        1: 'A favor',
+        2: 'Potencialmente a favor', 
+        3: 'Neutral',
+        4: 'Potencialmente en contra',
+        5: 'En contra'
     }
     
     if not df.empty and 'Posición' in df.columns:

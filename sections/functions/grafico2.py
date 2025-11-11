@@ -257,6 +257,45 @@ def preparar_datos_para_grafico(df_radio: pd.DataFrame, df_tv: pd.DataFrame, df_
         })
         
         resultado = resultado[['Posición', 'Tipo_Coctel', 'Medio', 'Cantidad']]
+        
+        # ✅ COMPLETAR TODAS LAS COMBINACIONES CON CEROS
+        # Definir todas las posibles posiciones
+        todas_posiciones = ['A favor', 'Potencialmente a favor', 'Neutral', 
+                           'Potencialmente en contra', 'En contra']
+        
+        # Definir todos los tipos de coctel
+        todos_tipos = ['Con coctel', 'Sin coctel']
+        
+        # Definir todos los medios que tienen datos
+        medios_con_datos = resultado['Medio'].unique().tolist()
+        
+        # Crear DataFrame con TODAS las combinaciones posibles
+        combinaciones = []
+        for medio in medios_con_datos:
+            for posicion in todas_posiciones:
+                for tipo in todos_tipos:
+                    combinaciones.append({
+                        'Posición': posicion,
+                        'Tipo_Coctel': tipo,
+                        'Medio': medio,
+                        'Cantidad': 0
+                    })
+        
+        df_completo = pd.DataFrame(combinaciones)
+        
+        # Mergear con los datos reales, manteniendo los valores reales donde existan
+        resultado = df_completo.merge(
+            resultado, 
+            on=['Posición', 'Tipo_Coctel', 'Medio'], 
+            how='left',
+            suffixes=('_default', '_real')
+        )
+        
+        # Si existe Cantidad_real, usar ese valor, sino usar 0
+        resultado['Cantidad'] = resultado['Cantidad_real'].fillna(resultado['Cantidad_default']).astype(int)
+        
+        # Limpiar columnas auxiliares
+        resultado = resultado[['Posición', 'Tipo_Coctel', 'Medio', 'Cantidad']]
     
     return resultado
 
