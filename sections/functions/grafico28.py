@@ -3,15 +3,15 @@ from .grafico27 import ejecutar_query
 
 def obtener_data_grafico28():
     """
-    Recupera y separa la data para el Gráfico 28.
-    Retorna dos DataFrames:
-    1. df_con_coctel: Usuarios y sus notas CON coctel (id_nota NOT NULL)
-    2. df_sin_coctel: Usuarios y sus notas SIN coctel (id_nota NULL)
+    Recupera la data para el Gráfico 28 y retorna dos DataFrames pivoteados (Meses en columnas):
+    1. df_con: Usuarios y sus notas CON coctel (id_nota NOT NULL)
+    2. df_sin: Usuarios y sus notas SIN coctel (id_nota NULL)
     """
     
+    # Consulta que trae ambos conteos por mes y usuario
     query = """
     SELECT 
-        TO_CHAR(a.fecha_registro, 'YYYY-MM') as mes,
+        TO_CHAR(a.fecha_registro, 'YYYY-MM') as mes_sort,
         u.nombre as nombre_usuario,
         COALESCE(STRING_AGG(DISTINCT l.nombre, ', '), 'Sin Región') as regiones,
         SUM(CASE WHEN a.id_nota IS NOT NULL THEN 1 ELSE 0 END) as cantidad_con_coctel,
@@ -25,11 +25,11 @@ def obtener_data_grafico28():
         TO_CHAR(a.fecha_registro, 'YYYY-MM'),
         u.nombre
     ORDER BY 
-        mes DESC, 
+        mes_sort DESC, 
         u.nombre ASC;
     """
     
-    print("DEBUG grafico28: Ejecutando consulta desglosada (Con/Sin Coctel)...")
+    print("DEBUG grafico28: Ejecutando consulta desglosada y pivoteada...")
     
     try:
         df = ejecutar_query(query)
@@ -37,21 +37,54 @@ def obtener_data_grafico28():
         if df is None or df.empty:
             return pd.DataFrame(), pd.DataFrame()
 
-        # Convertir columnas numéricas
-        df['cantidad_con_coctel'] = df['cantidad_con_coctel'].astype(int)
-        df['cantidad_sin_coctel'] = df['cantidad_sin_coctel'].astype(int)
+        # Diccionario para formatear columnas de fecha
+        meses_es = {
+            '01': 'Ene', '02': 'Feb', '03': 'Mar', '04': 'Abr',
+            '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Ago',
+            '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dic'
+        }
 
-        # --- SEPARAR EN 2 CUADROS ---
+        def procesar_pivot(df_raw, col_valor):
+            # Filtramos solo registros que tengan valor > 0 en esa categoría
+            df_filtrado = df_raw[df_raw[col_valor] > 0].copy()
+            
+            if df_filtrado.empty:
+                return pd.DataFrame()
 
-        # Cuadro 1: Con Coctel (Filtramos donde haya al menos 1)
-        df_con = df[df['cantidad_con_coctel'] > 0].copy()
-        df_con = df_con[['mes', 'nombre_usuario', 'regiones', 'cantidad_con_coctel']]
-        df_con.columns = ['Mes', 'Usuario', 'Regiones', 'Cantidad Notas (Con Coctel)']
+            # Pivotear: Usuarios en filas, Meses en columnas
+            df_pivot = df_filtrado.pivot_table(
+                index=['nombre_usuario', 'regiones'], 
+                columns='mes_sort', 
+                values=col_valor, 
+                aggfunc='sum',
+                fill_value=0
+            )
 
-        # Cuadro 2: Sin Coctel (Filtramos donde haya al menos 1)
-        df_sin = df[df['cantidad_sin_coctel'] > 0].copy()
-        df_sin = df_sin[['mes', 'nombre_usuario', 'regiones', 'cantidad_sin_coctel']]
-        df_sin.columns = ['Mes', 'Usuario', 'Regiones', 'Cantidad Notas (Sin Coctel)']
+            # Renombrar columnas de fecha (2025-01 -> Ene-25)
+            nuevas_columnas = []
+            for col in df_pivot.columns:
+                try:
+                    anio, mes = col.split('-')
+                    nombre_mes = meses_es.get(mes, mes)
+                    anio_corto = anio[-2:]
+                    nuevas_columnas.append(f"{nombre_mes}-{anio_corto}")
+                except:
+                    nuevas_columnas.append(col)
+            
+            df_pivot.columns = nuevas_columnas
+
+            # Aplanar índice y renombrar columnas fijas
+            df_final = df_pivot.reset_index()
+            df_final.rename(columns={
+                'nombre_usuario': 'Nombre del usuario',
+                'regiones': 'Regiones que tiene acceso'
+            }, inplace=True)
+
+            return df_final
+
+        # Generar los dos DataFrames
+        df_con = procesar_pivot(df, 'cantidad_con_coctel')
+        df_sin = procesar_pivot(df, 'cantidad_sin_coctel')
 
         return df_con, df_sin
 

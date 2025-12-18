@@ -3835,47 +3835,41 @@ class CoctelSections:
     # --- Agregar la función de renderizado ---
     def section_28_registros_usuarios(self):
         """
-        Renderiza el Gráfico 28: Reporte Mensual de Productividad (Separado en Con/Sin Coctel)
+        Renderiza el Gráfico 28: Reporte Mensual de Productividad (Dos tablas: Con y Sin Coctel)
         """
         st.markdown("## 📊 Gráfico 28: Productividad Mensual de Usuarios")
         
-        # Obtener los datos desde la función que creamos
         from sections.functions.grafico28 import obtener_data_grafico28
+        
+        # Ahora esperamos 2 valores nuevamente
         df_con_coctel, df_sin_coctel = obtener_data_grafico28()
         
-        # Verificar si ambos están vacíos
         if df_con_coctel.empty and df_sin_coctel.empty:
             st.warning("⚠️ No se encontraron datos de productividad en los últimos 12 meses.")
             return
     
-        # --- SECCIÓN A: Notas CON Coctel ---
-        st.markdown("### 🍸 Sección A: Notas con Coctel (Asociadas a una Nota)")
-        st.markdown("Registros que tienen un ID de nota válido.")
+        # --- TABLA 1: CON COCTEL ---
+        st.markdown("### 🍸 Notas CON Coctel (Registradas)")
+        st.markdown("Usuarios y cantidad de notas con ID válido por mes.")
         
         if not df_con_coctel.empty:
-            # Formato visual mejorado
             st.dataframe(
                 df_con_coctel, 
                 use_container_width=True, 
                 hide_index=True,
                 column_config={
-                    "Mes": st.column_config.TextColumn("Mes", width="small"),
-                    "Usuario": st.column_config.TextColumn("Usuario", width="medium"),
-                    "Regiones": st.column_config.TextColumn("Regiones de Acceso", width="large"),
-                    "Cantidad Notas (Con Coctel)": st.column_config.NumberColumn(
-                        "Cant. Notas Coctel", 
-                        format="%d 🍸"
-                    )
+                    "Nombre del usuario": st.column_config.TextColumn("Usuario", width="medium"),
+                    "Regiones que tiene acceso": st.column_config.TextColumn("Regiones", width="large"),
                 }
             )
         else:
             st.info("No hay registros con coctel en este periodo.")
-    
+            
         st.markdown("---")
     
-        # --- SECCIÓN B: Notas SIN Coctel ---
-        st.markdown("### 📝 Sección B: Notas sin Coctel (Acontecimientos simples)")
-        st.markdown("Registros de acontecimientos que no generaron nota (ID Nota es NULL).")
+        # --- TABLA 2: SIN COCTEL ---
+        st.markdown("### 📝 Notas SIN Coctel (Registrdas)")
+        st.markdown("Usuarios y cantidad de acontecimientos sin nota asociada por mes.")
         
         if not df_sin_coctel.empty:
             st.dataframe(
@@ -3883,20 +3877,12 @@ class CoctelSections:
                 use_container_width=True, 
                 hide_index=True,
                 column_config={
-                    "Mes": st.column_config.TextColumn("Mes", width="small"),
-                    "Usuario": st.column_config.TextColumn("Usuario", width="medium"),
-                    "Regiones": st.column_config.TextColumn("Regiones de Acceso", width="large"),
-                    "Cantidad Notas (Sin Coctel)": st.column_config.NumberColumn(
-                        "Cant. Sin Coctel", 
-                        format="%d 📝"
-                    )
+                    "Nombre del usuario": st.column_config.TextColumn("Usuario", width="medium"),
+                    "Regiones que tiene acceso": st.column_config.TextColumn("Regiones", width="large"),
                 }
             )
         else:
             st.info("No hay registros sin coctel en este periodo.")
-    
-
-
 
     def render_single_section(self, section_code: str, global_filters: Dict[str, Any], mostrar_todos: bool = True):
         """Renderizar una sección específica basada en su código"""
