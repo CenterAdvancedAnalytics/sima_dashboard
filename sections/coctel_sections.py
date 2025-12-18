@@ -3833,7 +3833,7 @@ class CoctelSections:
     
     
     # --- Agregar la función de renderizado ---
-    def section_28_registros_usuarios():
+    def section_28_registros_usuarios(self):
         """
         Renderiza el Gráfico 28: Reporte Mensual de Productividad (Separado en Con/Sin Coctel)
         """
