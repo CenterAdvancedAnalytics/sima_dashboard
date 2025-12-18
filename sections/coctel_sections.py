@@ -3835,13 +3835,16 @@ class CoctelSections:
     # --- Agregar la función de renderizado ---
     def section_28_registros_usuarios(self):
         """
-        Renderiza el Gráfico 28: Reporte Mensual de Productividad (Dos tablas: Con y Sin Coctel)
+        Renderiza el Gráfico 28: Reporte Mensual de Productividad
+        Muestra dos tablas:
+        1. Notas CON Coctel (id_nota != NULL)
+        2. Notas SIN Coctel (id_nota == NULL)
         """
         st.markdown("## 📊 Gráfico 28: Productividad Mensual de Usuarios")
         
         from sections.functions.grafico28 import obtener_data_grafico28
         
-        # Ahora esperamos 2 valores nuevamente
+        # Obtenemos los dos DataFrames
         df_con_coctel, df_sin_coctel = obtener_data_grafico28()
         
         if df_con_coctel.empty and df_sin_coctel.empty:
@@ -3850,7 +3853,7 @@ class CoctelSections:
     
         # --- TABLA 1: CON COCTEL ---
         st.markdown("### 🍸 Notas CON Coctel (Registradas)")
-        st.markdown("Usuarios y cantidad de notas con ID válido por mes.")
+        st.markdown("Cantidad de notas asociadas a un coctel, desglosadas por usuario y región.")
         
         if not df_con_coctel.empty:
             st.dataframe(
@@ -3859,7 +3862,7 @@ class CoctelSections:
                 hide_index=True,
                 column_config={
                     "Nombre del usuario": st.column_config.TextColumn("Usuario", width="medium"),
-                    "Regiones que tiene acceso": st.column_config.TextColumn("Regiones", width="large"),
+                    "Región": st.column_config.TextColumn("Región", width="medium"),
                 }
             )
         else:
@@ -3868,8 +3871,8 @@ class CoctelSections:
         st.markdown("---")
     
         # --- TABLA 2: SIN COCTEL ---
-        st.markdown("### 📝 Notas SIN Coctel (Registrdas)")
-        st.markdown("Usuarios y cantidad de acontecimientos sin nota asociada por mes.")
+        st.markdown("### 📝 Notas SIN Coctel (Acontecimientos)")
+        st.markdown("Cantidad de acontecimientos sin nota asociada, desglosados por usuario y región.")
         
         if not df_sin_coctel.empty:
             st.dataframe(
@@ -3878,12 +3881,11 @@ class CoctelSections:
                 hide_index=True,
                 column_config={
                     "Nombre del usuario": st.column_config.TextColumn("Usuario", width="medium"),
-                    "Regiones que tiene acceso": st.column_config.TextColumn("Regiones", width="large"),
+                    "Región": st.column_config.TextColumn("Región", width="medium"),
                 }
             )
         else:
             st.info("No hay registros sin coctel en este periodo.")
-
     def render_single_section(self, section_code: str, global_filters: Dict[str, Any], mostrar_todos: bool = True):
         """Renderizar una sección específica basada en su código"""
         

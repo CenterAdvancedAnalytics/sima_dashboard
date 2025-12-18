@@ -3,17 +3,19 @@ from .grafico27 import ejecutar_query
 
 def obtener_data_grafico28():
     """
-    Recupera la data para el Gráfico 28 y retorna dos DataFrames pivoteados (Meses en columnas):
+    Recupera la data para el Gráfico 28 y retorna dos DataFrames pivoteados:
     1. df_con: Usuarios y sus notas CON coctel (id_nota NOT NULL)
     2. df_sin: Usuarios y sus notas SIN coctel (id_nota NULL)
+    
+    Cada fila representa una combinación única de Usuario + Región.
     """
     
-    # Consulta que trae ambos conteos por mes y usuario
+    # Modificamos la query para agrupar por usuario Y región (sin concatenar)
     query = """
     SELECT 
         TO_CHAR(a.fecha_registro, 'YYYY-MM') as mes_sort,
         u.nombre as nombre_usuario,
-        COALESCE(STRING_AGG(DISTINCT l.nombre, ', '), 'Sin Región') as regiones,
+        COALESCE(l.nombre, 'Sin Región') as region,
         SUM(CASE WHEN a.id_nota IS NOT NULL THEN 1 ELSE 0 END) as cantidad_con_coctel,
         SUM(CASE WHEN a.id_nota IS NULL THEN 1 ELSE 0 END) as cantidad_sin_coctel
     FROM acontecimientos a
@@ -23,13 +25,15 @@ def obtener_data_grafico28():
         a.fecha_registro >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months'
     GROUP BY 
         TO_CHAR(a.fecha_registro, 'YYYY-MM'),
-        u.nombre
+        u.nombre,
+        l.nombre
     ORDER BY 
         mes_sort DESC, 
-        u.nombre ASC;
+        u.nombre ASC,
+        region ASC;
     """
     
-    print("DEBUG grafico28: Ejecutando consulta desglosada y pivoteada...")
+    print("DEBUG grafico28: Ejecutando consulta desagregada por región...")
     
     try:
         df = ejecutar_query(query)
@@ -51,9 +55,9 @@ def obtener_data_grafico28():
             if df_filtrado.empty:
                 return pd.DataFrame()
 
-            # Pivotear: Usuarios en filas, Meses en columnas
+            # Pivotear: Usuarios y Región en filas, Meses en columnas
             df_pivot = df_filtrado.pivot_table(
-                index=['nombre_usuario', 'regiones'], 
+                index=['nombre_usuario', 'region'], 
                 columns='mes_sort', 
                 values=col_valor, 
                 aggfunc='sum',
@@ -77,7 +81,7 @@ def obtener_data_grafico28():
             df_final = df_pivot.reset_index()
             df_final.rename(columns={
                 'nombre_usuario': 'Nombre del usuario',
-                'regiones': 'Regiones que tiene acceso'
+                'region': 'Región'
             }, inplace=True)
 
             return df_final
