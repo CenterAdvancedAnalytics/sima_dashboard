@@ -152,6 +152,10 @@ class CoctelSections:
         
         # SECCIÓN 27 - A favor vs en contra mensual
         self.section_27_favor_contra_mensual(global_filters)
+
+        # SECCIÓN 28 - Registros creados por usuarios
+        self.section_28_registros_usuarios(global_filters)
+        
         
     # =====================================================
     # IMPLEMENTACIÓN DE TODAS LAS SECCIONES
@@ -3825,9 +3829,72 @@ class CoctelSections:
            st.write("Nota: Los valores muestran el porcentaje de cocteles en cada semana")
        else:
            st.warning("No hay datos suficientes")
-
-
-
+    # --- Agregar en la zona de imports (al inicio del archivo) ---
+    
+    
+    # --- Agregar la función de renderizado ---
+    def section_28_registros_usuarios():
+        """
+        Renderiza el Gráfico 28: Reporte Mensual de Productividad (Separado en Con/Sin Coctel)
+        """
+        st.markdown("## 📊 Gráfico 28: Productividad Mensual de Usuarios")
+        
+        # Obtener los datos desde la función que creamos
+        from sections.functions.grafico28 import obtener_data_grafico28
+        df_con_coctel, df_sin_coctel = obtener_data_grafico28()
+        
+        # Verificar si ambos están vacíos
+        if df_con_coctel.empty and df_sin_coctel.empty:
+            st.warning("⚠️ No se encontraron datos de productividad en los últimos 12 meses.")
+            return
+    
+        # --- SECCIÓN A: Notas CON Coctel ---
+        st.markdown("### 🍸 Sección A: Notas con Coctel (Asociadas a una Nota)")
+        st.markdown("Registros que tienen un ID de nota válido.")
+        
+        if not df_con_coctel.empty:
+            # Formato visual mejorado
+            st.dataframe(
+                df_con_coctel, 
+                use_container_width=True, 
+                hide_index=True,
+                column_config={
+                    "Mes": st.column_config.TextColumn("Mes", width="small"),
+                    "Usuario": st.column_config.TextColumn("Usuario", width="medium"),
+                    "Regiones": st.column_config.TextColumn("Regiones de Acceso", width="large"),
+                    "Cantidad Notas (Con Coctel)": st.column_config.NumberColumn(
+                        "Cant. Notas Coctel", 
+                        format="%d 🍸"
+                    )
+                }
+            )
+        else:
+            st.info("No hay registros con coctel en este periodo.")
+    
+        st.markdown("---")
+    
+        # --- SECCIÓN B: Notas SIN Coctel ---
+        st.markdown("### 📝 Sección B: Notas sin Coctel (Acontecimientos simples)")
+        st.markdown("Registros de acontecimientos que no generaron nota (ID Nota es NULL).")
+        
+        if not df_sin_coctel.empty:
+            st.dataframe(
+                df_sin_coctel, 
+                use_container_width=True, 
+                hide_index=True,
+                column_config={
+                    "Mes": st.column_config.TextColumn("Mes", width="small"),
+                    "Usuario": st.column_config.TextColumn("Usuario", width="medium"),
+                    "Regiones": st.column_config.TextColumn("Regiones de Acceso", width="large"),
+                    "Cantidad Notas (Sin Coctel)": st.column_config.NumberColumn(
+                        "Cant. Sin Coctel", 
+                        format="%d 📝"
+                    )
+                }
+            )
+        else:
+            st.info("No hay registros sin coctel en este periodo.")
+    
 
 
 
@@ -3865,6 +3932,7 @@ class CoctelSections:
             "25": lambda: self.section_25_impactos_programa(global_filters),
             "26": lambda: self.section_26_distribucion_medio(global_filters),
             "27": lambda: self.section_27_favor_contra_mensual(global_filters),
+            "28": lambda: self.section_28_registros_usuarios(), # <--- AGREGADO
         }
         
         # Ejecutar la sección seleccionada

@@ -217,6 +217,7 @@ class DashboardApp:
             "25. Impactos por programa": "25",
             "26. Distribución por medio": "26",
             "27. A Favor vs En Contra (Mensual)": "27",
+            "28. Registros creados por usuarios (Mensual)": "28",
         }
         
         # Selectbox para elegir la sección
