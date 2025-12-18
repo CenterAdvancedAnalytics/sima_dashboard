@@ -154,7 +154,7 @@ class CoctelSections:
         self.section_27_favor_contra_mensual(global_filters)
 
         # SECCIÓN 28 - Registros creados por usuarios
-        self.section_28_registros_usuarios(global_filters)
+        self.section_28_registros_usuarios()
         
         
     # =====================================================
