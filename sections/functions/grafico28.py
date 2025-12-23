@@ -3,14 +3,12 @@ from .grafico27 import ejecutar_query
 
 def obtener_data_grafico28():
     """
-    Recupera la data para el Gráfico 28 y retorna dos DataFrames pivoteados:
-    1. df_con: Usuarios y sus notas CON coctel (id_nota NOT NULL)
-    2. df_sin: Usuarios y sus notas SIN coctel (id_nota NULL)
-    
-    Cada fila representa una combinación única de Usuario + Región.
+    Recupera la data para el Gráfico 28 y retorna tres DataFrames pivoteados:
+    1. df_con: Usuarios y sus notas CON coctel
+    2. df_sin: Usuarios y sus notas SIN coctel
+    3. df_total: Suma total de notas (Con + Sin)
     """
     
-    # Modificamos la query para agrupar por usuario Y región (sin concatenar)
     query = """
     SELECT 
         TO_CHAR(a.fecha_registro, 'YYYY-MM') as mes_sort,
@@ -38,8 +36,12 @@ def obtener_data_grafico28():
     try:
         df = ejecutar_query(query)
         
+        # Si no hay datos, retornar 3 dataframes vacíos
         if df is None or df.empty:
-            return pd.DataFrame(), pd.DataFrame()
+            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+
+        # Calcular la columna TOTAL (suma de ambas cantidades)
+        df['cantidad_total'] = df['cantidad_con_coctel'] + df['cantidad_sin_coctel']
 
         # Diccionario para formatear columnas de fecha
         meses_es = {
@@ -86,12 +88,13 @@ def obtener_data_grafico28():
 
             return df_final
 
-        # Generar los dos DataFrames
+        # Generar los tres DataFrames
         df_con = procesar_pivot(df, 'cantidad_con_coctel')
         df_sin = procesar_pivot(df, 'cantidad_sin_coctel')
+        df_total = procesar_pivot(df, 'cantidad_total')
 
-        return df_con, df_sin
+        return df_con, df_sin, df_total
 
     except Exception as e:
         print(f"❌ Error en grafico28: {e}")
-        return pd.DataFrame(), pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
