@@ -3831,79 +3831,74 @@ class CoctelSections:
            st.warning("No hay datos suficientes")
     # --- Agregar en la zona de imports (al inicio del archivo) ---
     
-    
-    # --- Agregar la función de renderizado ---
+
     def section_28_registros_usuarios(self):
         """
         Renderiza el Gráfico 28: Reporte Mensual de Productividad
-        Permite filtrar entre:
-        - Con coctel (Notas registradas)
-        - Sin coctel (Acontecimientos sin nota)
-        - Todos (Total de actividad)
         """
         st.markdown("## 📊 Gráfico 28: Productividad Mensual de Usuarios")
         
         from sections.functions.grafico28 import obtener_data_grafico28
+
+        # --- FILTROS ---
+        col1, col2 = st.columns(2)
         
-        # 1. Obtener los 3 DataFrames (ahora recibimos también el total)
+        with col1:
+            fuente_map = {"Radio": 1, "TV": 2, "Redes": 3, "Todos": None}
+            option_fuente = st.selectbox("Filtrar por Fuente", list(fuente_map.keys()), key="fuente_s28")
+        
+        with col2:
+            opcion_tipo = st.selectbox(
+                "Tipo de registro",
+                ["Todos", "Con coctel", "Sin coctel"],
+                key="tipo_s28"
+            )
+
+        # Obtener datos
         try:
-            # Intentamos desempaquetar 3 valores (si ya actualizaste grafico28.py)
-            df_con_coctel, df_sin_coctel, df_total = obtener_data_grafico28()
-        except ValueError:
-            # Fallback por si grafico28.py aún retorna solo 2 valores (mientras actualizas)
-            df_con_coctel, df_sin_coctel = obtener_data_grafico28()
-            df_total = pd.DataFrame() # DataFrame vacío temporalmente
+            # Ahora la función maneja los joins internamente según la fuente
+            df_con, df_sin, df_total = obtener_data_grafico28(id_fuente=fuente_map[option_fuente])
+        except Exception as e:
+            st.error(f"Error al cargar datos: {e}")
+            return
 
-        # 2. Selector de filtro
-        opcion_filtro = st.selectbox(
-            "Seleccione el tipo de registro a visualizar:",
-            ["Con coctel", "Sin coctel", "Todos"],
-            key="filtro_s28"
-        )
-        
-        # 3. Lógica de visualización según filtro
-        if opcion_filtro == "Con coctel":
-            st.markdown("### 🍸 Notas CON Coctel (Registradas)")
-            st.caption("Cantidad de notas asociadas a un coctel, desglosadas por usuario y región.")
-            df_mostrar = df_con_coctel
-            empty_msg = "No hay registros con coctel en este periodo."
-            
-        elif opcion_filtro == "Sin coctel":
-            st.markdown("### 📝 Notas SIN Coctel (Acontecimientos)")
-            st.caption("Cantidad de acontecimientos sin nota asociada, desglosados por usuario y región.")
-            df_mostrar = df_sin_coctel
-            empty_msg = "No hay registros sin coctel en este periodo."
-            
-        else: # "Todos"
-            st.markdown("### 📈 Productividad Total (Con + Sin Coctel)")
-            st.caption("Suma total de registros (notas y acontecimientos) realizados por usuario y región.")
+        # Seleccionar DataFrame
+        if opcion_tipo == "Con coctel":
+            df_mostrar = df_con
+            titulo_tabla = "🍸 Notas CON Coctel (Registradas)"
+        elif opcion_tipo == "Sin coctel":
+            df_mostrar = df_sin
+            titulo_tabla = "📝 Notas SIN Coctel (Acontecimientos)"
+        else:
             df_mostrar = df_total
-            empty_msg = "No hay actividad registrada en este periodo."
+            titulo_tabla = "📈 Productividad Total (Con + Sin Coctel)"
 
-        # 4. Renderizar la tabla seleccionada
+        # Renderizar Tabla
+        st.markdown(f"### {titulo_tabla}")
+        
         if not df_mostrar.empty:
             st.dataframe(
                 df_mostrar, 
                 use_container_width=True, 
                 hide_index=True,
                 column_config={
-                    "Nombre del usuario": st.column_config.TextColumn("Usuario", width="medium"),
-                    "Región": st.column_config.TextColumn("Región", width="medium"),
+                    "Usuario": st.column_config.TextColumn("Usuario", width="medium"),
+                    "Región": st.column_config.TextColumn("Región", width="small"),
+                    "Programa/Medio": st.column_config.TextColumn("Programa/Medio", width="large"),
                 }
             )
             
-            # Botón de descarga para la tabla actual
             csv = df_mostrar.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label=f"📥 Descargar tabla ({opcion_filtro})",
+                label="📥 Descargar Reporte (CSV)",
                 data=csv,
-                file_name=f"productividad_usuarios_{opcion_filtro.lower().replace(' ', '_')}.csv",
+                file_name=f"productividad_{option_fuente}_{opcion_tipo}.csv",
                 mime="text/csv",
-                key=f"dl_s28_{opcion_filtro}"
+                key="btn_down_s28"
             )
         else:
-            st.info(empty_msg)
-            
+            st.info("No se encontraron registros para esta selección.")
+                
     def render_single_section(self, section_code: str, global_filters: Dict[str, Any], mostrar_todos: bool = True):
         """Renderizar una sección específica basada en su código"""
         
