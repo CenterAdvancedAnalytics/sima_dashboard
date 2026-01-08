@@ -69,7 +69,8 @@ def obtener_data_grafico28(id_fuente=None):
         
     query = f"""
     SELECT 
-        TO_CHAR(a.fecha_registro, 'YYYY-MM') as mes_sort,
+        -- CORRECCIÓN 1: Ajustar fecha a zona horaria Lima para agrupar en el mes correcto
+        TO_CHAR((a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima'), 'YYYY-MM') as mes_sort,
         TRIM(CONCAT(u.nombre, ' ', u.apellido)) as nombre_usuario,
         COALESCE(l.nombre, 'Sin Región') as region,
         CASE 
@@ -77,27 +78,30 @@ def obtener_data_grafico28(id_fuente=None):
             WHEN fpage.nombre IS NOT NULL THEN fpage.nombre
             ELSE 'Sin Programa/Medio'
         END as nombre_programa,
-        SUM(CASE WHEN a.id_nota IS NOT NULL THEN 1 ELSE 0 END) as cantidad_con_coctel,
-        SUM(CASE WHEN a.id_nota IS NULL THEN 1 ELSE 0 END) as cantidad_sin_coctel
+        
+        -- CORRECCIÓN 2: Usar COUNT(DISTINCT ...) para evitar duplicados por los LEFT JOIN
+        COUNT(DISTINCT CASE WHEN a.id_nota IS NOT NULL THEN a.id END) as cantidad_con_coctel,
+        COUNT(DISTINCT CASE WHEN a.id_nota IS NULL THEN a.id END) as cantidad_sin_coctel
+        
     FROM acontecimientos a
     JOIN usuarios u ON a.id_usuario_registro = u.id
     LEFT JOIN lugares l ON a.id_lugar = l.id
     
-    -- Joins para Radio y TV
     LEFT JOIN acontecimiento_programa ap ON a.id = ap.id_acontecimiento
     LEFT JOIN programas p ON ap.id_programa = p.id
     
-    -- Joins para Redes Sociales
     LEFT JOIN acontecimiento_facebook_post afp ON a.id = afp.id_acontecimiento
     LEFT JOIN facebook_posts fp ON afp.id_facebook_post = fp.id
     LEFT JOIN facebook_pages fpage ON fp.id_facebook_page = fpage.id
     
     WHERE 
-        a.fecha_registro >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months'
+        -- CORRECCIÓN 3: Filtrar usando la fecha en hora Lima
+        (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima') >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months'
         {filtro_fuente}
         
     GROUP BY 
-        TO_CHAR(a.fecha_registro, 'YYYY-MM'),
+        -- Asegurar agrupar por la fecha transformada
+        TO_CHAR((a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima'), 'YYYY-MM'),
         u.nombre,
         u.apellido,
         l.nombre,
