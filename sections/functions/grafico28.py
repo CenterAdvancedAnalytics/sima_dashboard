@@ -82,7 +82,7 @@ def obtener_data_grafico28(id_fuente=None):
             COUNT(DISTINCT CASE WHEN a.id_nota IS NULL THEN a.id END) as cantidad_sin_coctel
         FROM acontecimiento_programa ap
         JOIN acontecimientos a ON ap.id_acontecimiento = a.id
-        JOIN usuarios u ON a.id_usuario_registro = u.id
+        LEFT JOIN usuarios u ON a.id_usuario_registro = u.id
         LEFT JOIN lugares l ON a.id_lugar = l.id
         JOIN programas p ON ap.id_programa = p.id
         {where_time}
@@ -102,7 +102,7 @@ def obtener_data_grafico28(id_fuente=None):
             COUNT(DISTINCT CASE WHEN a.id_nota IS NULL THEN a.id END) as cantidad_sin_coctel
         FROM acontecimiento_facebook_post afp
         JOIN acontecimientos a ON afp.id_acontecimiento = a.id
-        JOIN usuarios u ON a.id_usuario_registro = u.id
+        LEFT JOIN usuarios u ON a.id_usuario_registro = u.id
         LEFT JOIN lugares l ON a.id_lugar = l.id
         JOIN facebook_posts fp ON afp.id_facebook_post = fp.id
         JOIN facebook_pages fpage ON fp.id_facebook_page = fpage.id
@@ -122,7 +122,7 @@ def obtener_data_grafico28(id_fuente=None):
                 COUNT(DISTINCT CASE WHEN a.id_nota IS NULL THEN a.id END) as cantidad_sin_coctel
             FROM acontecimiento_programa ap
             JOIN acontecimientos a ON ap.id_acontecimiento = a.id
-            JOIN usuarios u ON a.id_usuario_registro = u.id
+            LEFT JOIN usuarios u ON a.id_usuario_registro = u.id
             LEFT JOIN lugares l ON a.id_lugar = l.id
             JOIN programas p ON ap.id_programa = p.id
             {where_time}
@@ -137,7 +137,7 @@ def obtener_data_grafico28(id_fuente=None):
                 COUNT(DISTINCT CASE WHEN a.id_nota IS NULL THEN a.id END) as cantidad_sin_coctel
             FROM acontecimiento_facebook_post afp
             JOIN acontecimientos a ON afp.id_acontecimiento = a.id
-            JOIN usuarios u ON a.id_usuario_registro = u.id
+            LEFT JOIN usuarios u ON a.id_usuario_registro = u.id
             LEFT JOIN lugares l ON a.id_lugar = l.id
             JOIN facebook_posts fp ON afp.id_facebook_post = fp.id
             JOIN facebook_pages fpage ON fp.id_facebook_page = fpage.id
