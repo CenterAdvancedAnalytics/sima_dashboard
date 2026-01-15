@@ -48,72 +48,106 @@ def ejecutar_query(query: str, params: Optional[List[Any]] = None) -> Optional[p
         if connection:
             connection.close()
 
-# --- LÓGICA DEL GRÁFICO 28 ---
+# --- LÓGICA DEL GRÁFICO 28 (CORREGIDA - CON DISTINCT PARA IGUALAR A SN.PY) ---
 
 def obtener_data_grafico28(id_fuente=None):
     """
     Recupera la data para el Gráfico 28.
-    Argumentos:
-        id_fuente (int, opcional): ID de la fuente para filtrar (1=Radio, 2=TV, 3=Redes).
+    Usa COUNT(DISTINCT a.id) para eliminar duplicados y coincidir con la lógica de sn.py (drop_duplicates).
     """
     
-    # Lógica de filtrado en el WHERE
-    filtro_fuente = ""
-    if id_fuente == 1: # Radio
-        filtro_fuente = "AND p.id_fuente = 1"
-    elif id_fuente == 2: # TV
-        filtro_fuente = "AND p.id_fuente = 2"
-    elif id_fuente == 3: # Redes
-        # Para redes, buscamos que exista enlace con facebook_page
-        filtro_fuente = "AND fpage.id IS NOT NULL"
-        
-    query = f"""
-    SELECT 
-        -- CORRECCIÓN 1: Ajustar fecha a zona horaria Lima para agrupar en el mes correcto
+    # Definimos las partes comunes de la consulta
+    select_cols = """
         TO_CHAR((a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima'), 'YYYY-MM') as mes_sort,
         TRIM(CONCAT(u.nombre, ' ', u.apellido)) as nombre_usuario,
         COALESCE(l.nombre, 'Sin Región') as region,
-        CASE 
-            WHEN p.nombre IS NOT NULL THEN p.nombre
-            WHEN fpage.nombre IS NOT NULL THEN fpage.nombre
-            ELSE 'Sin Programa/Medio'
-        END as nombre_programa,
-        
-        -- CORRECCIÓN 2: Usar COUNT(DISTINCT ...) para evitar duplicados por los LEFT JOIN
-        COUNT(DISTINCT CASE WHEN a.id_nota IS NOT NULL THEN a.id END) as cantidad_con_coctel,
-        COUNT(DISTINCT CASE WHEN a.id_nota IS NULL THEN a.id END) as cantidad_sin_coctel
-        
-    FROM acontecimientos a
-    JOIN usuarios u ON a.id_usuario_registro = u.id
-    LEFT JOIN lugares l ON a.id_lugar = l.id
-    
-    LEFT JOIN acontecimiento_programa ap ON a.id = ap.id_acontecimiento
-    LEFT JOIN programas p ON ap.id_programa = p.id
-    
-    LEFT JOIN acontecimiento_facebook_post afp ON a.id = afp.id_acontecimiento
-    LEFT JOIN facebook_posts fp ON afp.id_facebook_post = fp.id
-    LEFT JOIN facebook_pages fpage ON fp.id_facebook_page = fpage.id
-    
-    WHERE 
-        -- CORRECCIÓN 3: Filtrar usando la fecha en hora Lima
-        (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima') >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months'
-        {filtro_fuente}
-        
-    GROUP BY 
-        -- Asegurar agrupar por la fecha transformada
-        TO_CHAR((a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima'), 'YYYY-MM'),
-        u.nombre,
-        u.apellido,
-        l.nombre,
-        p.nombre,
-        fpage.nombre
-    ORDER BY 
-        mes_sort DESC, 
-        nombre_usuario ASC,
-        region ASC;
     """
     
-    print(f"DEBUG grafico28: Ejecutando consulta compleja (id_fuente={id_fuente})...")
+    where_time = """
+        WHERE (a.fecha_registro AT TIME ZONE 'UTC' AT TIME ZONE 'America/Lima') >= DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '11 months'
+    """
+
+    query = ""
+
+    # --- ESTRATEGIA: Consultas separadas + COUNT(DISTINCT) ---
+    
+    # CASO 1: Radio (1) o TV (2)
+    if id_fuente == 1 or id_fuente == 2:
+        query = f"""
+        SELECT 
+            {select_cols}
+            p.nombre as nombre_programa,
+            -- AQUI EL CAMBIO: Usamos DISTINCT a.id para contar eventos únicos por programa
+            COUNT(DISTINCT CASE WHEN a.id_nota IS NOT NULL THEN a.id END) as cantidad_con_coctel,
+            COUNT(DISTINCT CASE WHEN a.id_nota IS NULL THEN a.id END) as cantidad_sin_coctel
+        FROM acontecimiento_programa ap
+        JOIN acontecimientos a ON ap.id_acontecimiento = a.id
+        JOIN usuarios u ON a.id_usuario_registro = u.id
+        LEFT JOIN lugares l ON a.id_lugar = l.id
+        JOIN programas p ON ap.id_programa = p.id
+        {where_time}
+        AND p.id_fuente = {id_fuente}
+        GROUP BY 1, u.nombre, u.apellido, l.nombre, p.nombre
+        ORDER BY mes_sort DESC, nombre_usuario ASC, region ASC;
+        """
+
+    # CASO 2: Redes Sociales (3)
+    elif id_fuente == 3:
+        query = f"""
+        SELECT 
+            {select_cols}
+            fpage.nombre as nombre_programa,
+            -- AQUI EL CAMBIO: Usamos DISTINCT a.id
+            COUNT(DISTINCT CASE WHEN a.id_nota IS NOT NULL THEN a.id END) as cantidad_con_coctel,
+            COUNT(DISTINCT CASE WHEN a.id_nota IS NULL THEN a.id END) as cantidad_sin_coctel
+        FROM acontecimiento_facebook_post afp
+        JOIN acontecimientos a ON afp.id_acontecimiento = a.id
+        JOIN usuarios u ON a.id_usuario_registro = u.id
+        LEFT JOIN lugares l ON a.id_lugar = l.id
+        JOIN facebook_posts fp ON afp.id_facebook_post = fp.id
+        JOIN facebook_pages fpage ON fp.id_facebook_page = fpage.id
+        {where_time}
+        GROUP BY 1, u.nombre, u.apellido, l.nombre, fpage.nombre
+        ORDER BY mes_sort DESC, nombre_usuario ASC, region ASC;
+        """
+
+    # CASO 3: Todos (None)
+    else:
+        query = f"""
+        (
+            SELECT 
+                {select_cols}
+                p.nombre as nombre_programa,
+                COUNT(DISTINCT CASE WHEN a.id_nota IS NOT NULL THEN a.id END) as cantidad_con_coctel,
+                COUNT(DISTINCT CASE WHEN a.id_nota IS NULL THEN a.id END) as cantidad_sin_coctel
+            FROM acontecimiento_programa ap
+            JOIN acontecimientos a ON ap.id_acontecimiento = a.id
+            JOIN usuarios u ON a.id_usuario_registro = u.id
+            LEFT JOIN lugares l ON a.id_lugar = l.id
+            JOIN programas p ON ap.id_programa = p.id
+            {where_time}
+            GROUP BY 1, u.nombre, u.apellido, l.nombre, p.nombre
+        )
+        UNION ALL
+        (
+            SELECT 
+                {select_cols}
+                fpage.nombre as nombre_programa,
+                COUNT(DISTINCT CASE WHEN a.id_nota IS NOT NULL THEN a.id END) as cantidad_con_coctel,
+                COUNT(DISTINCT CASE WHEN a.id_nota IS NULL THEN a.id END) as cantidad_sin_coctel
+            FROM acontecimiento_facebook_post afp
+            JOIN acontecimientos a ON afp.id_acontecimiento = a.id
+            JOIN usuarios u ON a.id_usuario_registro = u.id
+            LEFT JOIN lugares l ON a.id_lugar = l.id
+            JOIN facebook_posts fp ON afp.id_facebook_post = fp.id
+            JOIN facebook_pages fpage ON fp.id_facebook_page = fpage.id
+            {where_time}
+            GROUP BY 1, u.nombre, u.apellido, l.nombre, fpage.nombre
+        )
+        ORDER BY mes_sort DESC, nombre_usuario ASC, region ASC;
+        """
+
+    print(f"DEBUG grafico28: Ejecutando consulta CON DISTINCT (id_fuente={id_fuente})...")
     
     try:
         df = ejecutar_query(query)
@@ -136,7 +170,6 @@ def obtener_data_grafico28(id_fuente=None):
             if df_filtrado.empty:
                 return pd.DataFrame()
 
-            # Ahora incluimos 'nombre_programa' en el índice del pivot
             df_pivot = df_filtrado.pivot_table(
                 index=['nombre_usuario', 'region', 'nombre_programa'], 
                 columns='mes_sort', 
@@ -158,7 +191,6 @@ def obtener_data_grafico28(id_fuente=None):
             df_pivot.columns = nuevas_columnas
 
             df_final = df_pivot.reset_index()
-            # Renombrar columnas para la vista final
             df_final.rename(columns={
                 'nombre_usuario': 'Usuario',
                 'region': 'Región',
